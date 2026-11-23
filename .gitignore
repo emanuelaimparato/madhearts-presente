@@ -7,7 +7,8 @@ __pycache__/
 models/*.task
 models/*.part
 
-# Dati locali di ogni installazione: la sfera e le impostazioni del pannello
+# Dati locali di ogni installazione: regolazioni del Mac, sfera e impostazioni del pannello
+config.local.toml
 data/sfera*.json
 data/impostazioni.json
 logs/

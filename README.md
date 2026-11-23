@@ -100,6 +100,16 @@ python -m madhearts.app --soak 240          # prova continuativa di 4 ore (regis
 python -m madhearts.app --verbose           # mostra anche i messaggi tecnici di MediaPipe
 ```
 
+## Le regolazioni di questo Mac: config.local.toml
+
+`config.toml` contiene i valori del progetto e arriva con gli aggiornamenti.
+Le regolazioni del singolo Mac (PIN del pannello, autostart, sensibilità della
+camera nel suo spazio...) vanno in **`config.local.toml`**: copia
+`config.local.esempio.toml` con questo nome e scrivi solo le righe che vuoi cambiare,
+sotto la loro sezione. Prevale su `config.toml`, si ricarica da solo e gli
+aggiornamenti non lo toccano mai. `aggiorna.sh` comunque mette da parte e rimette da
+solo eventuali modifiche fatte direttamente a `config.toml`.
+
 ## Posizionare la camera
 
 Con il debug attivo (D) il pannello mostra la camera, i punti del corpo e un
@@ -168,7 +178,8 @@ python -m tools.render_preview --video prova.mp4 --seconds 30   # video della gr
 ## Architettura
 
 ```
-config.toml                 tutti i parametri (si ricarica a caldo)
+config.toml                 tutti i parametri del progetto (si ricarica a caldo)
+config.local.toml           regolazioni di questo Mac (non nel repository; vedi config.local.esempio.toml)
 avvia_madhearts.command     avvio dal Terminale
 installa.sh                 installazione completa su un nuovo Mac
 aggiorna.sh                 scarica l'ultima versione dal repository

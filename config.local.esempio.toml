@@ -1,0 +1,18 @@
+# ============================================================
+#  MadHearts — regolazioni di QUESTO Mac
+#  Copia questo file come  config.local.toml  (stessa cartella) e modificalo.
+#  config.local.toml non è nel repository: gli aggiornamenti non lo toccano mai.
+#  Scrivi solo le righe che vuoi cambiare, sotto la loro sezione: prevalgono su config.toml.
+#  Si ricarica da solo anche con l'app aperta (le impostazioni di [panel] richiedono un riavvio).
+# ============================================================
+
+[panel]
+# Pannello raggiungibile dal telefono (stessa rete Wi-Fi), protetto da PIN.
+lan = true
+pin = "2468"
+
+# [app]
+# autostart = true
+
+# [tracking]
+# min_presence = 0.6
