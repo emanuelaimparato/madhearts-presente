@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MadHearts — Presente</title>
+<link rel="icon" href="assets/icona.png">
+<style>
+  @font-face { font-family: "League Gothic"; src: url("assets/fonts/LeagueGothic.ttf"); }
+  @font-face { font-family: "DM Sans"; src: url("assets/fonts/DMSans.ttf"); }
+  :root { --red: #F5383C; --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; overflow: hidden; }
+  canvas#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+  body.hide-cursor, body.hide-cursor * { cursor: none !important; }
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #000; z-index: 5; padding: 16px; text-align: center; }
+  #start img { width: min(240px, 50vw); }
+  #start h1 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: clamp(34px, 6vw, 56px); margin: 0; letter-spacing: .02em; }
+  #start .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  #start button { font-family: "League Gothic", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 26px; padding: 14px 26px; border-radius: 12px; border: 1px solid var(--line); background: #151515; color: #fff; cursor: pointer; }
+  #start button.primary { background: var(--red); border-color: var(--red); font-size: 32px; }
+  #start p { color: var(--muted); font-size: 14px; margin: 0; max-width: 560px; line-height: 1.6; }
+  #start .err { color: #ff8485; }
+  #debug { position: fixed; left: 16px; top: 16px; z-index: 4; width: min(520px, 45vw); background: rgba(18,18,18,.92); border-radius: 10px; overflow: hidden; display: none; font-size: 13px; }
+  #debug canvas { width: 100%; display: block; }
+  #debug .lines { padding: 8px 10px; line-height: 1.55; font-variant-numeric: tabular-nums; white-space: pre-wrap; }
+  #debug .msg { color: var(--muted); }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="start">
+  <img src="assets/logo.png" alt="MadHearts">
+  <h1>Presente</h1>
+  <div class="row">
+    <button class="primary" id="go-camera">Avvia</button>
+    <button id="go-demo">Prova senza camera</button>
+  </div>
+  <p id="hint">Consenti l'accesso alla webcam quando il browser lo chiede: le immagini restano solo su questo computer e non vengono mai salvate.<br>
+  Tasti: <b>F</b> schermo intero · <b>Spazio</b> pausa · <b>D</b> debug · <b>C</b> due volte per azzerare la sfera. Browser consigliato: Chrome.</p>
+</div>
+
+<div id="debug"><canvas id="dbgcam" width="560" height="315"></canvas><div class="lines" id="dbglines"></div></div>
+
+<script type="module">
+import { DEFAULTS, deepMerge } from "./js/config.js";
+import { Camera } from "./js/camera.js";
+import { Tracker, SIDES } from "./js/tracking.js";
+import { MotionProcessor } from "./js/motion.js";
+import { SimulatedVisitor } from "./js/simulate.js";
+import { createContext } from "./js/visuals/gl.js";
+import { VisualEngine } from "./js/visuals/engine.js";
+import { Attract } from "./js/visuals/attract.js";
+
+const $ = (id) => document.getElementById(id);
+const canvas = $("gl");
+const SPHERE_KEY = "madhearts.sfera.v1";
+const cfg = deepMerge(DEFAULTS, { app: { max_dpr: 1.5 } });
+const app = { playing: false, debug: false, source: null, cam: null, tracker: null, sim: null, state: null, obs: null,
+              messages: [], clearArmed: 0, ringCount: 0, fps: 0, t0: 0 };
+
+// ---------------------------------------------------------------- grafica
+let gl, engine, attract;
+try {
+  gl = createContext(canvas);
+} catch (e) {
+  $("hint").innerHTML = `<span class="err">${e.message}</span>`;
+}
+function screenSize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, cfg.app.max_dpr);
+  return [Math.round(innerWidth * dpr), Math.round(innerHeight * dpr)];
+}
+function resize() {
+  const [w, h] = screenSize();
+  canvas.width = w; canvas.height = h;
+  engine?.resize([w, h]);
+  attract?.configure(cfg, [w, h]);
+}
+if (gl) {
+  engine = new VisualEngine(gl, screenSize(), cfg);
+  attract = new Attract(gl, engine.quad);
+  resize();
+  loadSphere();
+  addEventListener("resize", resize);
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- sfera salvata nel browser
+function loadSphere() {
+  try {
+    const raw = localStorage.getItem(SPHERE_KEY);
+    if (raw) { engine.sphere.load(JSON.parse(raw), engine.t, Date.now() / 1000); say(`sfera ripristinata: ${engine.sphere.rings.length} anelli`); }
+  } catch (e) { say("sfera salvata non leggibile: riparte da un anello"); }
+  engine.sphere.ensureInitial(engine.p.initial_rings, engine.t);
+  app.ringCount = engine.sphere.count;
+}
+function saveSphere() {
+  try { localStorage.setItem(SPHERE_KEY, JSON.stringify(engine.sphere.export(engine.t, Date.now() / 1000))); }
+  catch (e) { say("ERRORE: impossibile salvare la sfera in questo browser"); }
+}
+addEventListener("pagehide", () => engine && saveSphere());
+
+function say(text) {
+  app.messages.push([performance.now(), text]);
+  app.messages = app.messages.slice(-6);
+  console.log("[MadHearts]", text);
+}
+
+// ---------------------------------------------------------------- avvio
+async function start(source) {
+  $("hint").textContent = source === "camera" ? "Avvio della webcam e del riconoscimento…" : "Avvio della simulazione…";
+  try {
+    if (source === "camera") {
+      app.cam = await new Camera(cfg.camera).start();
+      app.tracker = await Tracker.create(cfg, ".");
+      say(`camera ${app.cam.settings.width}x${app.cam.settings.height} · elaborazione ${app.tracker.delegate}`);
+    } else {
+      app.sim = new SimulatedVisitor({ restFor: 8 });
+      say("simulazione");
+    }
+  } catch (e) {
+    $("hint").innerHTML = `<span class="err">${e.message}</span>`;
+    return;
+  }
+  app.source = source;
+  app.motion = new MotionProcessor(cfg);
+  app.t0 = performance.now();
+  app.playing = true;
+  $("start").style.display = "none";
+  attract.fadeToBlack(false);
+}
+$("go-camera").onclick = () => start("camera");
+$("go-demo").onclick = () => start("demo");
+
+// ---------------------------------------------------------------- ciclo
+let last = performance.now(), lastSim = 0, frames = 0, fpsT = last;
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.1);
+  last = now;
+  let st = null;
+  if (app.source === "camera" && app.cam.newFrame()) {
+    app.obs = app.tracker.process(app.cam.video, app.cam.frameId);
+    if (app.playing) app.state = app.motion.update(app.obs);
+  } else if (app.source === "demo" && app.playing) {
+    const t = (now - app.t0) / 1000;
+    if (t - lastSim >= 1 / 30) { lastSim = t; app.obs = app.sim.observe(t); app.state = app.motion.update(app.obs); }
+  }
+  if (!app.playing) app.state = null;
+  st = app.state;
+  if (st) for (const e of st.events) if (e.kind === "complete") say(`filo completato (${e.data.reason}, ${e.data.strokes} gesti)`);
+  engine.update(st, dt);
+  if (st) st.events = [];
+  if (engine.sphere.count !== app.ringCount) {
+    app.ringCount = engine.sphere.count;
+    saveSphere();
+    say(`nuovo anello — la sfera ne ha ${engine.sphere.rings.length}`);
+  }
+  attract.update(dt, app.playing, st ? st.personPresence : 0);
+  engine.render(dt, [canvas.width, canvas.height]);
+  attract.draw();
+  if (app.debug) drawDebug();
+  frames++;
+  if (now - fpsT > 1000) { app.fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; }
+  requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- debug
+const dbg = $("dbgcam").getContext("2d");
+function drawDebug() {
+  const W = 560, H = 315, obs = app.obs, st = app.state, minVis = cfg.tracking.min_visibility;
+  dbg.fillStyle = "#111"; dbg.fillRect(0, 0, W, H);
+  if (app.cam) {
+    dbg.save(); if (cfg.camera.mirror) { dbg.translate(W, 0); dbg.scale(-1, 1); }
+    dbg.drawImage(app.cam.video, 0, 0, W, H); dbg.restore();
+  }
+  const v = engine.p, z = v.input_zoom;
+  dbg.strokeStyle = "#f53c3c"; dbg.lineWidth = 1;
+  dbg.strokeRect((v.input_center_x - 0.5 / z) * W, (v.input_center_y - 0.5 / z) * H, W / z, H / z);
+  dbg.fillStyle = "#f53c3c"; dbg.font = "11px DM Sans"; dbg.fillText("zona schermo", (v.input_center_x - 0.5 / z) * W + 4, (v.input_center_y - 0.5 / z) * H + 13);
+  const COL = { left: "#ff50dc", right: "#3cdcff" };
+  if (obs && obs.present) for (const s of SIDES) {
+    const a = obs.arms[s], ch = [a.shoulder, a.elbow, a.wrist];
+    dbg.strokeStyle = dbg.fillStyle = COL[s]; dbg.lineWidth = 2;
+    for (let i = 0; i < 2; i++) if (Math.min(ch[i].visibility, ch[i + 1].visibility) >= minVis) { dbg.beginPath(); dbg.moveTo(ch[i].x * W, ch[i].y * H); dbg.lineTo(ch[i + 1].x * W, ch[i + 1].y * H); dbg.stroke(); }
+    for (const p of ch) { dbg.beginPath(); dbg.arc(p.x * W, p.y * H, 4, 0, 7); p.visibility >= minVis ? dbg.fill() : dbg.stroke(); }
+  }
+  if (st) for (const s of SIDES) { const a = st.arms[s]; if (a.presence > 0.05) { dbg.strokeStyle = "#fff"; dbg.lineWidth = 2; dbg.beginPath(); dbg.arc(a.pos[0] * W, a.pos[1] * H, 8, 0, 7); dbg.stroke(); } }
+  const lines = [`${app.playing ? "ATTIVA" : "IN PAUSA"} · grafica ${app.fps.toFixed(0)} fps · anelli ${engine.sphere.rings.length}` +
+    (app.cam ? ` · camera ${app.cam.fps().toFixed(0)} fps · ${obs ? obs.poseMs.toFixed(1) : "–"} ms` : " · simulazione")];
+  if (st) lines.push(`intreccio ${st.sessionActive ? "IN CORSO" : "in attesa"} · riposo ${st.restTime.toFixed(1)} s · assente ${st.absentTime.toFixed(1)} s`);
+  const now = performance.now();
+  for (const [t, m] of app.messages) if (now - t < 8000) lines.push(`<span class="msg">${m}</span>`);
+  $("dbglines").innerHTML = lines.join("\n");
+}
+
+// ---------------------------------------------------------------- tasti
+addEventListener("keydown", (ev) => {
+  if (!app.source) return;
+  const k = ev.key.toLowerCase();
+  if (k === "f") {
+    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {});
+  } else if (k === " ") {
+    ev.preventDefault();
+    app.playing = !app.playing;
+    say(app.playing ? "esperienza avviata" : "in pausa (in attesa)");
+  } else if (k === "d") {
+    app.debug = !app.debug;
+    $("debug").style.display = app.debug ? "block" : "none";
+  } else if (k === "c") {
+    if (now() - app.clearArmed < 2000) {
+      app.clearArmed = 0;
+      engine.sphere.clear(engine.t, engine.p.initial_rings);
+      app.ringCount = engine.sphere.count;
+      saveSphere();
+      say("sfera azzerata");
+    } else { app.clearArmed = now(); say("premi di nuovo C entro 2 s per azzerare la sfera"); }
+  }
+});
+const now = () => performance.now();
+
+// cursore nascosto dopo 2 s di immobilità del mouse
+let cursorTimer = 0;
+addEventListener("mousemove", () => {
+  document.body.classList.remove("hide-cursor");
+  clearTimeout(cursorTimer);
+  cursorTimer = setTimeout(() => app.source && document.body.classList.add("hide-cursor"), 2000);
+});
+
+window.__mh = { app, get engine() { return engine; }, start };
+</script>
+</body>
+</html>

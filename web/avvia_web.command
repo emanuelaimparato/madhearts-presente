@@ -2,10 +2,10 @@
 # MadHearts web — prova sul Mac durante lo sviluppo.
 # Avvia un piccolo server locale (solo su questo Mac) e apre la pagina nel browser.
 # Il browser consente la webcam su "localhost".
-# Uso:  bash web/avvia_web.command [pagina]     (es. test-movimento.html)
+# Uso:  bash web/avvia_web.command [pagina]     (predefinita: index.html, l'esperienza)
 # Per chiudere il server: Ctrl+C in questa finestra del Terminale (o chiudi la finestra).
 cd "$(dirname "$0")"
-PAGE="${1:-test-movimento.html}"
+PAGE="${1:-index.html}"
 PORT=8000
 URL="http://localhost:$PORT/$PAGE"
 
