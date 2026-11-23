@@ -1,10 +1,24 @@
 #!/bin/bash
 # MadHearts web — prova sul Mac durante lo sviluppo.
 # Avvia un piccolo server locale (solo su questo Mac) e apre la pagina nel browser.
-# Il browser consente la webcam su "localhost". Per chiudere: chiudi questa finestra del Terminale.
+# Il browser consente la webcam su "localhost".
+# Uso:  bash web/avvia_web.command [pagina]     (es. test-movimento.html)
+# Per chiudere il server: Ctrl+C in questa finestra del Terminale (o chiudi la finestra).
 cd "$(dirname "$0")"
-PAGE="${1:-test-riconoscimento.html}"
+PAGE="${1:-test-movimento.html}"
 PORT=8000
-echo "MadHearts web: http://localhost:$PORT/$PAGE"
-( sleep 1; open -a "Google Chrome" "http://localhost:$PORT/$PAGE" 2>/dev/null || open "http://localhost:$PORT/$PAGE" ) &
+URL="http://localhost:$PORT/$PAGE"
+
+apri() { open -a "Google Chrome" "$1" 2>/dev/null || open "$1"; }
+
+# Server già acceso (per esempio in un'altra finestra)? Allora apri solo la pagina.
+if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Il server è già acceso: apro $URL"
+  apri "$URL"
+  exit 0
+fi
+
+echo "MadHearts web: $URL"
+echo "(per chiudere il server: Ctrl+C)"
+( sleep 1; apri "$URL" ) &
 python3 -m http.server $PORT --bind 127.0.0.1
