@@ -61,6 +61,12 @@ la rete del locale non lo permette, usa l'hotspot del telefono e collegaci il Ma
 La prima volta macOS può chiedere di consentire le connessioni in entrata: Consenti.
 Ogni modifica, da qualsiasi dispositivo, viene salvata automaticamente.
 
+**Rete per l'evento**: molte reti Wi-Fi (uffici, locali, reti "ospiti") impediscono
+ai dispositivi di vedersi tra loro, e il telefono non raggiunge il pannello. Soluzioni
+provate: l'hotspot del telefono con il Mac collegato, oppure un piccolo router
+portatile dedicato all'installazione. Non serve Internet. Se il Mac cambia rete con
+l'app aperta, l'indirizzo e il QR nel pannello si aggiornano da soli entro pochi secondi.
+
 ### Audio
 
 - **Musica**: metti la vostra traccia in `audio/musica.mp3` (o cambia `music_file` in `[audio]`).

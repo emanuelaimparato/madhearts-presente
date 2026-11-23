@@ -443,7 +443,7 @@ class App:
 
         clock = pygame.time.Clock()
         t0 = last = time.perf_counter()
-        last_poll = last_pub = t0
+        last_poll = last_pub = last_net = t0
         next_sim = 0.0
         last_id, self.state = 0, None
         self.ring_count = self.engine.sphere.count
@@ -535,6 +535,11 @@ class App:
                 if now - last_pub > 0.25:
                     last_pub = now
                     self.publish(gfx_fps)
+                if now - last_net > 5.0:
+                    last_net = now
+                    if self.panel.refresh_address():
+                        url = self.panel.urls[1] if len(self.panel.urls) > 1 else "nessuna rete"
+                        self.say(f"rete cambiata: nuovo indirizzo per il telefono {url} (il QR nel pannello è aggiornato)")
                 if self.autosave and self.settings_dirty is not None and now - self.settings_dirty > 1.5:
                     self.save_settings(quiet=True)
                 if soak is not None and not soak.tick(now, gfx_fps, self):

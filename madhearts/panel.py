@@ -122,6 +122,18 @@ class Panel:
                 self.urls.append(f"http://{ip}:{self.port}")
         self.log("pannello di controllo: " + "  oppure  ".join(self.urls) + ("  (PIN richiesto)" if self.pin else ""))
 
+    def refresh_address(self) -> bool:
+        """Ricalcola l'indirizzo per il telefono (cambia se il Mac passa a un'altra rete,
+        per esempio all'hotspot del telefono). Ritorna True se è cambiato."""
+        if not self.lan or self.server is None:
+            return False
+        ip = _lan_ip()
+        new = [f"http://localhost:{self.port}"] + ([f"http://{ip}:{self.port}"] if ip else [])
+        if new == self.urls:
+            return False
+        self.urls = new
+        return True
+
     def publish(self, state: dict) -> None:
         with self._lock:
             self._state = state

@@ -232,8 +232,10 @@ function render(s) {
   const scr = document.getElementById("btnScreen");
   scr.textContent = s.fullscreen ? "Riduci a finestra" : "Schermo intero";
   const qr = document.getElementById("qr");
-  if (s.phone_url && location.hostname === "localhost" && qr.style.display === "none") { qr.src = "/qr.svg"; qr.style.display = "block"; }
-  if (!s.phone_url) qr.style.display = "none";
+  if (s.phone_url && location.hostname === "localhost" && qr.dataset.url !== s.phone_url) {
+    qr.dataset.url = s.phone_url; qr.src = "/qr.svg?u=" + encodeURIComponent(s.phone_url); qr.style.display = "block";   // si aggiorna se cambia la rete
+  }
+  if (!s.phone_url) { qr.style.display = "none"; qr.dataset.url = ""; }
   document.getElementById("phoneLine").innerHTML = s.phone_url
     ? `Inquadra il codice con la fotocamera del telefono, oppure apri <b>${esc(s.phone_url)}</b> (non "localhost"). Il telefono deve essere sulla stessa rete Wi-Fi del Mac; poi inserisci il PIN.`
     : "Non attivo. Per abilitarlo, in config.toml sezione [panel]: <b>lan = true</b> e un <b>pin</b>, poi riavvia l'app.";
