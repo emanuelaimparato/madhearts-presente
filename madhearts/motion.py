@@ -306,7 +306,7 @@ DEFAULTS = dict(
     movement_threshold=0.5, stroke_min_length=0.6, amplitude_window=1.2, amplitude_full=2.0,
     turn_min_angle=70.0, turn_window=0.18, activity_decay=1.5, meet_distance=0.45,
     cross_margin=0.08, swap_min_jump=0.6, default_shoulder_width=0.22,
-    session_exit_seconds=4.0, session_rest_seconds=5.0, rest_elevation=-1.0,
+    session_exit_seconds=4.0, session_rest_seconds=5.0, rest_elevation=-1.0, rest_bottom=0.88, rest_grace=1.5,
     session_min_strokes=2, session_min_length=2.0, session_full_length=40.0,
 )
 
@@ -394,7 +394,7 @@ class MotionProcessor:
     # tiene le braccia lungo il corpo per session_rest_seconds. Alla fine viene
     # emesso l'evento "complete" (filo completato).
     def _new_session(self) -> None:
-        self.sess = dict(active=False, strokes=0, length=0.0, c2=0.0, s2=0.0, t0=0.0, rest=0.0, absent=0.0)
+        self.sess = dict(active=False, strokes=0, length=0.0, c2=0.0, s2=0.0, t0=0.0, rest=0.0, absent=0.0, busy=0.0)
 
     def _session(self, obs, st: MotionState, dt: float, aspect: float, events: list) -> None:
         p, ss = self.p, self.sess
@@ -413,13 +413,31 @@ class MotionProcessor:
         ss["absent"] = 0.0 if obs.present else ss["absent"] + dt
 
         def resting(a: ArmMotion) -> bool:
-            if a.state == LOST:                     # polso fuori dal bordo inferiore, corpo visibile
+            if a.state != TRACKING:                 # polso fuori inquadratura (o appena perso), corpo visibile
                 return True
-            return a.elevation < p["rest_elevation"] and a.speed < p["movement_threshold"] * 1.5
-        if obs.present and all(resting(a) for a in st.arms.values()):
+            if a.speed >= p["movement_threshold"] * 1.5:
+                return False
+            # braccio lungo il corpo: polso molto più in basso della spalla, oppure vicino al bordo inferiore
+            return a.elevation < p["rest_elevation"] or a.pos_norm[1] > p["rest_bottom"]
+
+        # un gesto vero azzera il riposo; un "tratto" tutto nella parte bassa dell'inquadratura
+        # (dove stanno le braccia abbassate) è quasi sempre un punto stimato che salta
+        rb = p["rest_bottom"]
+        stroke_now = any(e.kind == "stroke" and not (e.data["start"][1] > rb and e.data["end"][1] > rb)
+                         for e in events)
+        if not obs.present or stroke_now:
+            ss["rest"], ss["busy"] = 0.0, 0.0
+        elif all(resting(a) for a in st.arms.values()):
             ss["rest"] += dt
+            ss["busy"] = 0.0
         else:
-            ss["rest"] = 0.0
+            # un breve movimento non ferma il conteggio: solo un movimento che dura più di
+            # rest_grace secondi (o un gesto vero) lo azzera
+            ss["busy"] += dt
+            if ss["busy"] >= p["rest_grace"]:
+                ss["rest"] = 0.0
+            else:
+                ss["rest"] += dt
 
         st.session_active, st.rest_time, st.absent_time = ss["active"], ss["rest"], ss["absent"]
         if not ss["active"]:

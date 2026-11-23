@@ -23,9 +23,14 @@ autostart = false
 # (di solito http://localhost:8765).
 enabled = true
 port = 8765
-# true = raggiungibile anche dal telefono sulla stessa rete Wi-Fi. Richiede un PIN.
+# true = raggiungibile anche dal telefono o tablet sulla stessa rete Wi-Fi del Mac.
+# Richiede un PIN (scegli tu le cifre, es. pin = "2468"). L'indirizzo per il telefono
+# compare nel Terminale e nel pannello. Dopo averlo cambiato, riavvia l'app.
 lan = false
 pin = ""
+# true = ogni modifica fatta dal pannello (da qualsiasi dispositivo) viene salvata subito
+# in data/impostazioni.json e resta anche ai prossimi avvii.
+autosave = true
 
 [audio]
 enabled = true
@@ -103,6 +108,11 @@ min_presence_confidence = 0.5
 min_tracking_confidence = 0.5
 # Visibilità minima (0-1) perché un punto sia considerato affidabile.
 min_visibility = 0.3
+# Quanto MediaPipe deve essere sicuro che un punto sia DENTRO l'immagine (0-1).
+# Più alto = un braccio appena fuori dal bordo viene considerato fuori (e non "indovinato").
+min_presence = 0.6
+# Fascia ai bordi dell'immagine (frazione) in cui un punto è considerato fuori inquadratura.
+edge_margin = 0.02
 # Una mano viene associata a un polso se la distanza è minore di questo valore
 # (in multipli della larghezza delle spalle).
 hand_match_max_distance = 0.6
@@ -173,6 +183,11 @@ session_rest_seconds = 5.0
 # Braccia "lungo il corpo": polso più in basso della spalla di almeno questo valore (sw, negativo)
 # e fermo. Anche un polso fuori dal bordo inferiore (con il corpo visibile) conta come riposo.
 rest_elevation = -1.0
+# Conta come riposo anche un polso fermo nella parte bassa dell'inquadratura (0 = in alto, 1 = in basso).
+rest_bottom = 0.88
+# Per azzerare il conteggio del riposo serve un movimento che duri almeno questi secondi
+# (o un gesto vero): così un istante di punti "stimati" non fa ripartire il conteggio.
+rest_grace = 1.5
 # Perché nasca un anello servono almeno questi gesti e questa lunghezza totale (sw):
 # chi passa davanti senza intrecciare non aggiunge anelli.
 session_min_strokes = 2

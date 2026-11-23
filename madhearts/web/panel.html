@@ -107,11 +107,14 @@
 
   <section class="card">
     <h2>Impostazioni</h2>
-    <div class="row">
-      <button onclick="cmd('save_settings')">Salva come predefinite</button>
+    <div class="status-line" id="autosaveLine" style="margin-top:0"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnSave" onclick="cmd('save_settings')">Salva come predefinite</button>
       <button onclick="confirmCmd('reset_settings','Tornare ai valori di config.toml? Le impostazioni salvate dal pannello verranno dimenticate.')">Ripristina</button>
     </div>
     <div class="hint" id="savedHint" style="margin-top:8px"></div>
+    <h2 style="margin-top:18px">Da telefono o tablet</h2>
+    <div class="status-line" id="phoneLine" style="margin-top:0"></div>
     <h2 style="margin-top:18px">Messaggi</h2>
     <ul class="log" id="log"></ul>
     <div class="row" style="margin-top:14px">
@@ -217,7 +220,14 @@ function render(s) {
   document.getElementById("musicLine").innerHTML = s.audio_ok
     ? (s.music ? `Musica: <b>${s.music}</b>` : "Musica: nessun file (vedi cartella audio/)")
     : "Audio non disponibile su questo computer";
-  document.getElementById("savedHint").textContent = s.settings_saved ? "Ci sono impostazioni salvate dal pannello (in data/impostazioni.json)." : "";
+  document.getElementById("autosaveLine").innerHTML = s.autosave
+    ? "Ogni modifica viene <b>salvata automaticamente</b>, da qualsiasi dispositivo, e resta anche ai prossimi avvii dell'app."
+    : "Le modifiche valgono finché l'app è aperta: premi <b>Salva come predefinite</b> per mantenerle.";
+  document.getElementById("btnSave").style.display = s.autosave ? "none" : "";
+  document.getElementById("savedHint").textContent = s.settings_saved ? "Impostazioni personalizzate attive (in data/impostazioni.json)." : "In uso i valori di config.toml.";
+  document.getElementById("phoneLine").innerHTML = s.phone_url
+    ? `Apri <b>${esc(s.phone_url)}</b> sul telefono, collegato alla stessa rete Wi-Fi del Mac, e inserisci il PIN.`
+    : "Non attivo. Per abilitarlo, in config.toml sezione [panel]: <b>lan = true</b> e un <b>pin</b>, poi riavvia l'app.";
   buildSliders(s.params);
   const log = document.getElementById("log");
   log.innerHTML = s.messages.slice().reverse().map(m => `<li>${esc(m)}</li>`).join("");

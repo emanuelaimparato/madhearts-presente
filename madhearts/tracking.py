@@ -136,6 +136,8 @@ class Tracker:
         t = cfg.get("tracking", {})
         self.mirror = cfg.get("camera", {}).get("mirror", True)
         self.min_vis = float(t.get("min_visibility", 0.5))
+        self.min_presence = float(t.get("min_presence", 0.6))
+        self.edge_margin = float(t.get("edge_margin", 0.02))
         self.hands_enabled = bool(t.get("hands_enabled", True))
         self.hands_every = max(1, int(t.get("hands_every_n_frames", 1)))
         self.hand_match_max = float(t.get("hand_match_max_distance", 0.6))
@@ -184,11 +186,13 @@ class Tracker:
         x = 1.0 - lm.x if self.mirror else lm.x
         vis = lm.visibility if lm.visibility is not None else 1.0
         # MediaPipe "indovina" anche i punti fuori dall'inquadratura, a volte con visibilità
-        # alta: la "presence" dice invece se il punto è davvero dentro l'immagine.
+        # alta: la "presence" dice invece quanto è sicuro che il punto sia dentro l'immagine.
+        # Sotto min_presence il punto è considerato fuori; lo stesso se è sul bordo.
         pres = getattr(lm, "presence", None)
         if pres is not None:
-            vis = min(vis, pres)
-        if not (-0.02 <= lm.x <= 1.02 and -0.02 <= lm.y <= 1.02):
+            vis = 0.0 if pres < self.min_presence else min(vis, pres)
+        m = self.edge_margin
+        if not (m <= lm.x <= 1.0 - m and -0.02 <= lm.y <= 1.0 - m):
             vis = 0.0
         return Point(float(x), float(lm.y), float(lm.z or 0.0), float(vis))
 

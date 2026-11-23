@@ -87,6 +87,8 @@ class App:
         self.tracker = self.cam = self.worker = None
         self.running = True
         self.rings_at_start = 0
+        self.settings_dirty = None
+        self.autosave = bool(self.cfg.get("panel", {}).get("autosave", True))
 
     # -------------------------------------------------------------- impostazioni
     def _read_settings(self) -> dict:
@@ -128,17 +130,26 @@ class App:
         value = round(min(max(float(value), lo), hi), 4)
         self.overrides[pid] = value
         self._apply_cfg()
+        self.settings_dirty = time.perf_counter()        # salvataggio automatico poco dopo
         if announce:
             shown = f"{round(value * 100)}%" if unit == "%" else f"{value:g}{' s' if unit == 's' else ''}"
             self.say(f"{label}: {shown}", quiet=True)
 
-    def save_settings(self) -> None:
-        self.settings_file.parent.mkdir(exist_ok=True)
-        self.settings_file.write_text(json.dumps(self.overrides, indent=1))
-        self.say("impostazioni salvate: verranno usate anche ai prossimi avvii")
+    def save_settings(self, quiet=False) -> None:
+        try:
+            self.settings_file.parent.mkdir(exist_ok=True)
+            tmp = self.settings_file.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self.overrides, indent=1))
+            os.replace(tmp, self.settings_file)
+            self.settings_dirty = None
+            if not quiet:
+                self.say("impostazioni salvate: verranno usate anche ai prossimi avvii")
+        except Exception as e:
+            self.say(f"ERRORE nel salvare le impostazioni: {e}")
 
     def reset_settings(self) -> None:
         self.overrides.clear()
+        self.settings_dirty = None
         if self.settings_file.exists():
             self.settings_file.unlink()
         self._apply_cfg()
@@ -327,7 +338,9 @@ class App:
             "absent": st.absent_time if st else 0.0,
             "rings": len(self.engine.sphere.rings), "rings_session": len(self.engine.sphere.rings) - self.rings_at_start,
             "fps_gfx": gfx_fps, "fps_rec": self.worker.fps() if self.worker else 0.0,
-            "settings_saved": self.settings_file.exists(),
+            "settings_saved": self.settings_file.exists(), "autosave": self.autosave,
+            "phone_url": self.panel.urls[1] if len(self.panel.urls) > 1 else "",
+            "lan": self.panel.lan,
             "messages": [m for _, m in self.messages[-12:]],
             "params": [{"id": p[0], "label": p[1], "group": p[2], "min": p[3], "max": p[4], "step": p[5],
                         "unit": p[6], "hint": p[7], "value": self.value(p[0])} for p in PARAMS],
@@ -465,9 +478,13 @@ class App:
                 if now - last_pub > 0.25:
                     last_pub = now
                     self.publish(gfx_fps)
+                if self.autosave and self.settings_dirty is not None and now - self.settings_dirty > 1.5:
+                    self.save_settings(quiet=True)
                 if soak is not None and not soak.tick(now, gfx_fps, self):
                     self.running = False
         finally:
+            if self.autosave and self.settings_dirty is not None:
+                self.save_settings(quiet=True)
             self.save_sphere()
             self.audio.close()
             self.panel.stop()
