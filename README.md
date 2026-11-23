@@ -42,7 +42,7 @@ All'avvio il Terminale mostra l'indirizzo del pannello, di solito
 **http://localhost:8765**: aprilo nel browser del Mac.
 
 - **Esperienza**: Avvia / Pausa, Riavvia (ricollega camera e audio, ricarica la
-  configurazione — la sfera resta), Debug sul proiettore.
+  configurazione — la sfera resta), Debug sul proiettore, Schermo intero / Finestra.
 - **Sfera**: anelli totali, anelli da questo avvio, stato dell'intreccio in corso.
 - **Audio**: Silenzia, volume generale, musica, tappeto sonoro, scia, rintocco.
 - **Regolazioni**: luminosità, intensità, durata della scia, dissolvenza, soglia di rilevamento.
@@ -52,8 +52,14 @@ All'avvio il Terminale mostra l'indirizzo del pannello, di solito
   `data/impostazioni.json`) e "Ripristina" (torna a `config.toml`); Azzera sfera e
   Chiudi app, con conferma.
 
-**Dal telefono**: in `[panel]` metti `lan = true` e un `pin`; il Terminale mostra
-anche l'indirizzo per il telefono (stessa rete Wi-Fi).
+**Dal telefono o tablet**: in `[panel]` metti `lan = true` e un `pin`, poi riavvia
+l'app. Sul telefono NON va aperto "localhost" (indicherebbe il telefono stesso), ma
+l'indirizzo di rete del Mac, tipo `http://192.168.1.23:8765`: compare nel Terminale
+e nel pannello aperto sul Mac, insieme a un **codice QR** da inquadrare con la
+fotocamera del telefono. Il telefono deve essere sulla stessa rete Wi-Fi del Mac (se
+la rete del locale non lo permette, usa l'hotspot del telefono e collegaci il Mac).
+La prima volta macOS può chiedere di consentire le connessioni in entrata: Consenti.
+Ogni modifica, da qualsiasi dispositivo, viene salvata automaticamente.
 
 ### Audio
 
@@ -73,6 +79,7 @@ sono inclusi in `assets/fonts/` (licenza SIL Open Font License).
 | Tasto | Azione |
 |---|---|
 | SPAZIO | avvia / pausa |
+| F | schermo intero / finestra (la finestra si ridimensiona trascinando i bordi) |
 | R | riavvia |
 | D | debug: camera, punti rilevati, zona usata, stato, fps |
 | M | silenzia / riattiva l'audio |

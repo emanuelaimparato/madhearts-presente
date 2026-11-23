@@ -9,6 +9,8 @@
 # oppure un numero (0 = schermo del Mac). Elenco: python -m madhearts.app --list-displays
 display = "auto"
 fullscreen = true
+# Dimensione della finestra quando non è a schermo intero (tasto F o pulsante nel pannello).
+window_size = [1280, 720]
 # Parte con la modalità debug attiva (tasto D per attivarla/disattivarla).
 debug_on_start = false
 # Dove viene conservata la sfera tra un'accensione e l'altra (solo anelli, nessuna immagine).

@@ -10,6 +10,7 @@ Comandi principali dal PANNELLO nel browser (indirizzo mostrato all'avvio).
 Tasti di riserva sul Mac:
     SPAZIO      avvia / pausa
     R           riavvia (camera, audio, configurazione; la sfera resta)
+    F           schermo intero / finestra
     D           modalità debug on/off
     M           silenzia / riattiva l'audio
     1..8        regolazioni (vedi _KEYS), 0 = valori di config.toml
@@ -59,6 +60,7 @@ PARAMS = [
     ("motion.session_rest_seconds", "Braccia a riposo per completare il filo", "sfera", 1, 30, 1, "s", ""),
     ("visuals.sphere_rotation_speed", "Velocità di rotazione della sfera", "sfera", 0, 0.3, 0.005, "", ""),
     ("visuals.ring_brightness", "Luminosità degli anelli", "sfera", 0.1, 1.5, 0.05, "", ""),
+    ("visuals.sphere_radius", "Grandezza della sfera", "sfera", 0.1, 0.5, 0.01, "", "frazione dell'altezza dello schermo"),
     ("attract.invite_opacity", "Invito sul proiettore", "attesa", 0, 1, 0.05, "%", "0 = nascosto"),
     ("attract.logo_opacity", "Logo", "attesa", 0, 1, 0.05, "%", "0 = nascosto"),
 ]
@@ -252,9 +254,10 @@ class App:
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 1)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK, pygame.GL_CONTEXT_PROFILE_CORE)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True)
-        flags = pygame.OPENGL | pygame.DOUBLEBUF
-        size = (1280, 720)
-        if not self.args.windowed and a.get("fullscreen", True):
+        flags = pygame.OPENGL | pygame.DOUBLEBUF | pygame.RESIZABLE
+        size = tuple(a.get("window_size", [1280, 720]))
+        self.fullscreen = not self.args.windowed and a.get("fullscreen", True)
+        if self.fullscreen:
             flags |= pygame.FULLSCREEN
             size = (0, 0)
         try:
@@ -262,13 +265,53 @@ class App:
         except pygame.error:
             pygame.display.set_mode(size, flags, display=idx)
         pygame.display.set_caption("MadHearts")
-        pygame.mouse.set_visible(self.args.source == "mouse")
+        pygame.mouse.set_visible(self.args.source == "mouse" or not self.fullscreen)
         ctx = moderngl.create_context()
         fb = ctx.detect_framebuffer()
         self.say(f"schermo {idx + 1} di {len(sizes)}: {fb.viewport[2]}x{fb.viewport[3]}  ({ctx.info['GL_RENDERER']})")
         return ctx, fb
 
     # -------------------------------------------------------------- comandi
+    def set_fullscreen(self, on: bool) -> None:
+        """Passa da schermo intero a finestra (ridimensionabile) e viceversa, senza riavviare."""
+        import pygame
+        import warnings
+        if on == self.fullscreen:
+            return
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                win = pygame.Window.from_display_module()
+            if on:
+                win.set_fullscreen(desktop=True)
+            else:
+                win.set_windowed()
+                win.size = tuple(self.cfg.get("app", {}).get("window_size", [1280, 720]))
+                win.position = pygame.WINDOWPOS_CENTERED
+        except Exception:
+            try:                                    # riserva: metodo classico di pygame
+                pygame.display.toggle_fullscreen()
+            except pygame.error as e:
+                self.say(f"ERRORE nel cambiare modalità schermo: {e}")
+                return
+        self.fullscreen = on
+        pygame.mouse.set_visible(self.args.source == "mouse" or not on)
+        self._resize_pending = True
+        self.say("schermo intero" if on else "finestra (trascina i bordi per ridimensionarla; F o il pannello per tornare a schermo intero)")
+
+    def on_resize(self) -> None:
+        import pygame
+        w, h = pygame.display.get_window_size()
+        if (w, h) == tuple(self.size) or w < 64 or h < 64:
+            return
+        self.size = (w, h)
+        self.fb = self.ctx.detect_framebuffer()
+        self.fb.viewport = (0, 0, w, h)
+        self.engine.resize((w, h))
+        self.attract.size = (w, h)
+        self.attract.configure(self.cfg)
+        self.overlay.size = (w, h)
+
     def toggle_play(self, play: bool | None = None) -> None:
         self.playing = (not self.playing) if play is None else play
         self.say("esperienza avviata" if self.playing else "esperienza in pausa (in attesa)")
@@ -281,6 +324,8 @@ class App:
             self.toggle_play(False)
         elif name == "restart":
             self.restart()
+        elif name == "fullscreen":
+            self.set_fullscreen(not self.fullscreen)
         elif name == "debug":
             self.debug = not self.debug
         elif name == "mute":
@@ -307,6 +352,8 @@ class App:
             self.toggle_play()
         elif ch in ("r", "R"):
             self.restart()
+        elif ch in ("f", "F"):
+            self.set_fullscreen(not self.fullscreen)
         elif ch in ("d", "D"):
             self.debug = not self.debug
         elif ch in ("m", "M"):
@@ -332,6 +379,7 @@ class App:
             f"attiva {self.cam.actual_size[0]}x{self.cam.actual_size[1]}" if self.cam else "non collegata")
         self.panel.publish({
             "playing": self.playing, "debug": self.debug, "muted": self.audio.muted,
+            "fullscreen": self.fullscreen, "screen": f"{self.size[0]}x{self.size[1]}",
             "audio_ok": self.audio.ok, "music": self.audio.music_name if self.audio.music_loaded else "",
             "camera": cam, "person": bool(st and st.person_presence > 0.5),
             "session_active": bool(st and st.session_active), "rest": st.rest_time if st else 0.0,
@@ -368,7 +416,9 @@ class App:
 
         pygame.init()
         ctx, fb = self.create_window()
+        self.ctx, self.fb = ctx, fb
         size = fb.viewport[2], fb.viewport[3]
+        self.size = size
         self.engine = VisualEngine(ctx, size, self.cfg)
         self.motion = MotionProcessor(self.cfg)
         self.attract = Attract(ctx, size, self.cfg, PROJECT_ROOT, log=self.say)
@@ -381,7 +431,8 @@ class App:
         self.state = None
         self.worker_fps = 0.0
         self.publish(0.0)
-        overlay = DebugOverlay(ctx, size)
+        overlay = self.overlay = DebugOverlay(ctx, size)
+        self._resize_pending = False
         demo = SimulatedVisitor() if self.args.source == "demo" else None
         if self.overrides:
             self.say("impostazioni del pannello caricate da data/impostazioni.json")
@@ -406,8 +457,14 @@ class App:
                         self.running = False
                     elif ev.type == pygame.KEYDOWN:
                         self.on_key(ev)
+                    elif ev.type in (pygame.VIDEORESIZE, pygame.WINDOWSIZECHANGED):
+                        self._resize_pending = True
                 for c in self.panel.poll():
                     self.command(c)
+                if self._resize_pending:
+                    self._resize_pending = False
+                    self.on_resize()
+                fb = self.fb
                 now = time.perf_counter()
                 dt = min(now - last, 0.1)
                 last = now

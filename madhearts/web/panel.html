@@ -74,6 +74,9 @@
       <button id="btnRestart" onclick="confirmCmd('restart','Riavviare? La sfera resta com\'è: si ricollegano camera e audio e si ricarica la configurazione.')">Riavvia</button>
       <button id="btnDebug" onclick="cmd('debug')">Debug sul proiettore</button>
     </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnScreen" onclick="cmd('fullscreen')">Finestra</button>
+    </div>
     <div class="status-line" id="statusLine"></div>
   </section>
 
@@ -115,6 +118,7 @@
     <div class="hint" id="savedHint" style="margin-top:8px"></div>
     <h2 style="margin-top:18px">Da telefono o tablet</h2>
     <div class="status-line" id="phoneLine" style="margin-top:0"></div>
+    <img id="qr" alt="Codice QR per aprire il pannello dal telefono" style="display:none; width:180px; height:180px; background:#fff; padding:8px; border-radius:10px; margin-top:10px">
     <h2 style="margin-top:18px">Messaggi</h2>
     <ul class="log" id="log"></ul>
     <div class="row" style="margin-top:14px">
@@ -210,7 +214,7 @@ function render(s) {
   document.getElementById("btnMute").classList.toggle("on", s.muted);
   document.getElementById("btnMute").textContent = s.muted ? "Audio silenziato" : "Silenzia";
   document.getElementById("statusLine").innerHTML =
-    `Camera: <b>${s.camera}</b><br>Persona: <b>${s.person ? "presente" : "nessuno"}</b> · Riconoscimento: <b>${s.fps_rec.toFixed(0)} fps</b>`;
+    `Schermo: <b>${s.fullscreen ? "intero" : "finestra"} ${s.screen}</b><br>Camera: <b>${s.camera}</b><br>Persona: <b>${s.person ? "presente" : "nessuno"}</b> · Riconoscimento: <b>${s.fps_rec.toFixed(0)} fps</b>`;
   document.getElementById("sRings").textContent = s.rings;
   document.getElementById("sToday").textContent = s.rings_session;
   document.getElementById("sFps").textContent = s.fps_gfx.toFixed(0);
@@ -225,8 +229,13 @@ function render(s) {
     : "Le modifiche valgono finché l'app è aperta: premi <b>Salva come predefinite</b> per mantenerle.";
   document.getElementById("btnSave").style.display = s.autosave ? "none" : "";
   document.getElementById("savedHint").textContent = s.settings_saved ? "Impostazioni personalizzate attive (in data/impostazioni.json)." : "In uso i valori di config.toml.";
+  const scr = document.getElementById("btnScreen");
+  scr.textContent = s.fullscreen ? "Riduci a finestra" : "Schermo intero";
+  const qr = document.getElementById("qr");
+  if (s.phone_url && location.hostname === "localhost" && qr.style.display === "none") { qr.src = "/qr.svg"; qr.style.display = "block"; }
+  if (!s.phone_url) qr.style.display = "none";
   document.getElementById("phoneLine").innerHTML = s.phone_url
-    ? `Apri <b>${esc(s.phone_url)}</b> sul telefono, collegato alla stessa rete Wi-Fi del Mac, e inserisci il PIN.`
+    ? `Inquadra il codice con la fotocamera del telefono, oppure apri <b>${esc(s.phone_url)}</b> (non "localhost"). Il telefono deve essere sulla stessa rete Wi-Fi del Mac; poi inserisci il PIN.`
     : "Non attivo. Per abilitarlo, in config.toml sezione [panel]: <b>lan = true</b> e un <b>pin</b>, poi riavvia l'app.";
   buildSliders(s.params);
   const log = document.getElementById("log");

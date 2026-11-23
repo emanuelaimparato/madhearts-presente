@@ -70,6 +70,17 @@ class Panel:
                     f = panel.root / "assets" / "fonts" / Path(path).name
                     if f.exists():
                         return self._send(200, f.read_bytes(), "font/ttf")
+                if path == "/qr.svg":
+                    # codice QR dell'indirizzo per il telefono (contiene solo l'indirizzo, non il PIN)
+                    if len(panel.urls) < 2:
+                        return self._send(404, b"{}")
+                    try:
+                        import qrcode
+                        import qrcode.image.svg
+                        img = qrcode.make(panel.urls[1], image_factory=qrcode.image.svg.SvgPathImage, border=2)
+                        return self._send(200, img.to_string(), "image/svg+xml")
+                    except Exception:
+                        return self._send(404, b"{}")
                 if path == "/api/state":
                     if not self._authorized():
                         return self._send(401, b'{"errore":"pin"}')

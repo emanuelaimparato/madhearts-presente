@@ -13,5 +13,7 @@ numpy>=1.26
 # FASE 2:
 mediapipe==1.2.3
 # FASE 4:
-pygame-ce>=2.5
+pygame-ce>=2.5,<3
 moderngl>=5.12
+# Codice QR del pannello per il telefono:
+qrcode>=7.4
