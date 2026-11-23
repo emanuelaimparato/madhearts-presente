@@ -1,0 +1,12 @@
+{
+  "name": "MadHearts — Presente",
+  "short_name": "MadHearts",
+  "description": "Esperienza interattiva MadHearts: il gesto presente diventa parte della sfera.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "it",
+  "icons": [{ "src": "assets/icona.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+}

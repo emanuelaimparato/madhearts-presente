@@ -9,7 +9,7 @@ PAGE="${1:-index.html}"
 PORT=8000
 URL="http://localhost:$PORT/$PAGE"
 
-apri() { open -a "Google Chrome" "$1" 2>/dev/null || open "$1"; }
+apri() { open "$1"; }      # browser predefinito del Mac
 
 # Server già acceso (per esempio in un'altra finestra)? Allora apri solo la pagina.
 if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then

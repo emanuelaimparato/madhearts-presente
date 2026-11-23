@@ -21,6 +21,10 @@ audio/*.mp3
 audio/*.wav
 audio/*.ogg
 audio/*.m4a
+web/audio/*.mp3
+web/audio/*.wav
+web/audio/*.ogg
+web/audio/*.m4a
 
 # macOS
 .DS_Store

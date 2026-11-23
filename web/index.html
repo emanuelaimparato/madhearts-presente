@@ -3,27 +3,70 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
 <title>MadHearts — Presente</title>
 <link rel="icon" href="assets/icona.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
   @font-face { font-family: "League Gothic"; src: url("assets/fonts/LeagueGothic.ttf"); }
   @font-face { font-family: "DM Sans"; src: url("assets/fonts/DMSans.ttf"); }
-  :root { --red: #F5383C; --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; }
+  :root { --red: #F5383C; --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; --glass: rgba(14,14,14,.88); }
   html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; overflow: hidden; }
   canvas#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   body.hide-cursor, body.hide-cursor * { cursor: none !important; }
-  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #000; z-index: 5; padding: 16px; text-align: center; }
+  button { font: inherit; color: #fff; cursor: pointer; }
+  .gothic { font-family: "League Gothic", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* schermata di avvio */
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #000; z-index: 6; padding: 16px; text-align: center; }
   #start img { width: min(240px, 50vw); }
-  #start h1 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: clamp(34px, 6vw, 56px); margin: 0; letter-spacing: .02em; }
+  #start h1 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: clamp(34px, 6vw, 56px); margin: 0; }
   #start .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  #start button { font-family: "League Gothic", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 26px; padding: 14px 26px; border-radius: 12px; border: 1px solid var(--line); background: #151515; color: #fff; cursor: pointer; }
+  #start button { font-size: 26px; padding: 14px 26px; border-radius: 12px; border: 1px solid var(--line); background: #151515; }
   #start button.primary { background: var(--red); border-color: var(--red); font-size: 32px; }
   #start p { color: var(--muted); font-size: 14px; margin: 0; max-width: 560px; line-height: 1.6; }
-  #start .err { color: #ff8485; }
-  #debug { position: fixed; left: 16px; top: 16px; z-index: 4; width: min(520px, 45vw); background: rgba(18,18,18,.92); border-radius: 10px; overflow: hidden; display: none; font-size: 13px; }
+  .err { color: #ff8485; }
+
+  /* barra dei comandi: compare muovendo il mouse o toccando lo schermo */
+  #bar { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 140%); z-index: 4; display: flex; gap: 6px; align-items: center;
+         background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 8px; transition: transform .35s ease, opacity .35s ease; opacity: 0;
+         width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; flex-wrap: wrap; justify-content: center; }
+  #bar.show { transform: translate(-50%, 0); opacity: 1; }
+  body.drawer-open #bar { left: calc((100vw - min(400px, 100vw)) / 2); max-width: calc(100vw - min(400px, 100vw) - 32px); }
+  #bar button { font-family: "League Gothic", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 20px; padding: 8px 14px;
+                border-radius: 10px; border: 1px solid var(--line); background: #1c1c1c; min-width: 44px; min-height: 44px; }
+  #bar button.primary { background: var(--red); border-color: var(--red); min-width: 120px; }
+  #bar button.on { color: var(--red); border-color: var(--red); }
+  #bar .vol { font-variant-numeric: tabular-nums; min-width: 52px; text-align: center; font-size: 15px; }
+  #bar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+
+  /* pannello impostazioni */
+  #drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(400px, 100vw); z-index: 5; background: var(--glass); border-left: 1px solid var(--line);
+            transform: translateX(105%); transition: transform .35s ease; overflow-y: auto; box-sizing: border-box; padding: 18px 18px 40px; }
+  #drawer.open { transform: none; }
+  #drawer h2 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: 30px; margin: 0; color: #fff; }
+  #drawer h3 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: 22px; margin: 22px 0 6px; color: #fff; }
+  #drawer .head { display: flex; justify-content: space-between; align-items: center; }
+  #drawer .close { background: none; border: none; font-size: 28px; color: var(--muted); }
+  .slider { margin: 10px 0; }
+  .slider label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 2px; }
+  .slider label b { color: #fff; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .slider input { width: 100%; accent-color: var(--red); height: 26px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .status { font-size: 13px; color: var(--muted); line-height: 1.7; margin-top: 8px; }
+  .status b { color: var(--ink); font-weight: 500; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .actions button { font-family: "League Gothic", sans-serif; text-transform: uppercase; font-size: 19px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: #1c1c1c; }
+  .actions button.danger { color: #ff8485; border-color: #8a1f22; background: transparent; }
+
+  /* debug */
+  #debug { position: fixed; left: 16px; top: 16px; z-index: 3; width: min(520px, 45vw); background: rgba(18,18,18,.92); border-radius: 10px; overflow: hidden; display: none; font-size: 13px; }
   #debug canvas { width: 100%; display: block; }
   #debug .lines { padding: 8px 10px; line-height: 1.55; font-variant-numeric: tabular-nums; white-space: pre-wrap; }
   #debug .msg { color: var(--muted); }
+  #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 7; background: var(--glass); border: 1px solid var(--line); border-radius: 10px;
+           padding: 8px 14px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -33,14 +76,41 @@
   <img src="assets/logo.png" alt="MadHearts">
   <h1>Presente</h1>
   <div class="row">
-    <button class="primary" id="go-camera">Avvia</button>
-    <button id="go-demo">Prova senza camera</button>
+    <button class="primary gothic" id="go-camera">Avvia</button>
+    <button class="gothic" id="go-demo">Prova senza camera</button>
   </div>
   <p id="hint">Consenti l'accesso alla webcam quando il browser lo chiede: le immagini restano solo su questo computer e non vengono mai salvate.<br>
-  Tasti: <b>F</b> schermo intero · <b>Spazio</b> pausa · <b>D</b> debug · <b>C</b> due volte per azzerare la sfera. Browser consigliato: Chrome.</p>
+  Muovi il mouse (o tocca lo schermo) per i comandi. Tasti: <b>Spazio</b> pausa · <b>F</b> schermo intero · <b>+ / −</b> volume · <b>M</b> muto · <b>D</b> debug.</p>
 </div>
 
+<div id="bar" aria-label="Comandi">
+  <button class="primary" id="b-play">Pausa</button>
+  <span class="sep"></span>
+  <button id="b-voldown" aria-label="Volume giù">−</button>
+  <span class="vol" id="b-vol">80%</span>
+  <button id="b-volup" aria-label="Volume su">+</button>
+  <button id="b-mute">Muto</button>
+  <span class="sep"></span>
+  <button id="b-full">Schermo intero</button>
+  <button id="b-settings">Impostazioni</button>
+</div>
+
+<aside id="drawer" aria-label="Impostazioni">
+  <div class="head"><h2>Impostazioni</h2><button class="close" id="d-close" aria-label="Chiudi">×</button></div>
+  <div class="status" id="d-status"></div>
+  <div id="d-params"></div>
+  <h3>Sfera</h3>
+  <div class="status" id="d-sphere"></div>
+  <div class="actions">
+    <button id="d-reset">Valori iniziali</button>
+    <button class="danger" id="d-clear">Azzera la sfera</button>
+  </div>
+  <p class="hint" style="margin-top:14px">Le modifiche si salvano da sole in questo browser e restano ai prossimi avvii.<br>
+  Tasti: Spazio pausa (spegne anche la camera) · F schermo intero · + / − volume · M muto · D debug · C due volte azzera la sfera.</p>
+</aside>
+
 <div id="debug"><canvas id="dbgcam" width="560" height="315"></canvas><div class="lines" id="dbglines"></div></div>
+<div id="toast"></div>
 
 <script type="module">
 import { DEFAULTS, deepMerge } from "./js/config.js";
@@ -51,21 +121,22 @@ import { SimulatedVisitor } from "./js/simulate.js";
 import { createContext } from "./js/visuals/gl.js";
 import { VisualEngine } from "./js/visuals/engine.js";
 import { Attract } from "./js/visuals/attract.js";
+import { Audio } from "./js/audio.js";
+import { PARAMS, PARAM, loadSettings, saveSettings, clearSettings, toConfig, clampParam, formatParam } from "./js/settings.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("gl");
 const SPHERE_KEY = "madhearts.sfera.v1";
-const cfg = deepMerge(DEFAULTS, { app: { max_dpr: 1.5 } });
-const app = { playing: false, debug: false, source: null, cam: null, tracker: null, sim: null, state: null, obs: null,
-              messages: [], clearArmed: 0, ringCount: 0, fps: 0, t0: 0 };
+const BASE = deepMerge(DEFAULTS, { app: { max_dpr: 1.5 } });
+let overrides = loadSettings();
+let cfg = deepMerge(BASE, toConfig(overrides));
+const app = { playing: false, debug: false, source: null, cam: null, tracker: null, sim: null, motion: null, state: null, obs: null,
+              messages: [], clearArmed: 0, ringCount: 0, ringsAtStart: 0, fps: 0, t0: 0, camStarting: false };
 
-// ---------------------------------------------------------------- grafica
+// ---------------------------------------------------------------- grafica e audio
 let gl, engine, attract;
-try {
-  gl = createContext(canvas);
-} catch (e) {
-  $("hint").innerHTML = `<span class="err">${e.message}</span>`;
-}
+const audio = new Audio(cfg, say);
+try { gl = createContext(canvas); } catch (e) { $("hint").innerHTML = `<span class="err">${e.message}</span>`; }
 function screenSize() {
   const dpr = Math.min(window.devicePixelRatio || 1, cfg.app.max_dpr);
   return [Math.round(innerWidth * dpr), Math.round(innerHeight * dpr)];
@@ -85,6 +156,29 @@ if (gl) {
   requestAnimationFrame(frame);
 }
 
+// ---------------------------------------------------------------- regolazioni
+function applyConfig() {
+  cfg = deepMerge(BASE, toConfig(overrides));
+  engine?.configure(cfg);
+  app.motion?.configure(cfg);
+  audio.configure(cfg);
+  attract?.configure(cfg, [canvas.width, canvas.height]);
+  refreshUI();
+}
+function value(id) {
+  const [sec, key] = id.split(".");
+  const v = cfg[sec]?.[key];
+  if (v !== undefined) return v;
+  const defaults = { visuals: engine?.p, attract: attract?.p, audio: audio.v, motion: app.motion?.p ?? {} };
+  return defaults[sec]?.[key] ?? 0;
+}
+function setParam(id, v, announce = true) {
+  overrides[id] = clampParam(id, v);
+  saveSettings(overrides);
+  applyConfig();
+  if (announce) toast(`${PARAM[id][1]}: ${formatParam(id, overrides[id])}`);
+}
+
 // ---------------------------------------------------------------- sfera salvata nel browser
 function loadSphere() {
   try {
@@ -93,52 +187,95 @@ function loadSphere() {
   } catch (e) { say("sfera salvata non leggibile: riparte da un anello"); }
   engine.sphere.ensureInitial(engine.p.initial_rings, engine.t);
   app.ringCount = engine.sphere.count;
+  app.ringsAtStart = engine.sphere.rings.length;
 }
 function saveSphere() {
   try { localStorage.setItem(SPHERE_KEY, JSON.stringify(engine.sphere.export(engine.t, Date.now() / 1000))); }
   catch (e) { say("ERRORE: impossibile salvare la sfera in questo browser"); }
 }
+function clearSphere() {
+  engine.sphere.clear(engine.t, engine.p.initial_rings);
+  app.ringCount = engine.sphere.count;
+  app.ringsAtStart = engine.sphere.rings.length;
+  saveSphere();
+  toast("sfera azzerata");
+}
 addEventListener("pagehide", () => engine && saveSphere());
 
 function say(text) {
   app.messages.push([performance.now(), text]);
-  app.messages = app.messages.slice(-6);
+  app.messages = app.messages.slice(-8);
   console.log("[MadHearts]", text);
+}
+let toastTimer = 0;
+function toast(text) {
+  say(text);
+  $("toast").textContent = text;
+  $("toast").classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $("toast").classList.remove("show"), 1800);
+}
+
+// ---------------------------------------------------------------- camera: si spegne in pausa
+async function cameraOn() {
+  if (app.cam || app.camStarting) return true;
+  app.camStarting = true;
+  try {
+    app.cam = await new Camera(cfg.camera).start();
+    if (!app.tracker) app.tracker = await Tracker.create(cfg, ".");
+    say(`camera ${app.cam.settings.width}x${app.cam.settings.height} · elaborazione ${app.tracker.delegate}`);
+    return true;
+  } catch (e) {
+    app.cam?.stop(); app.cam = null;
+    toast(e.message);
+    return false;
+  } finally {
+    app.camStarting = false;
+  }
+}
+function cameraOff() {
+  app.cam?.stop();
+  app.cam = null;
+  app.obs = null;
+}
+
+async function setPlaying(on) {
+  if (on && app.source === "camera" && !(await cameraOn())) return;
+  if (!on && app.source === "camera") cameraOff();
+  app.playing = on;
+  toast(on ? "esperienza avviata" : "in pausa — camera spenta");
+  refreshUI();
 }
 
 // ---------------------------------------------------------------- avvio
 async function start(source) {
   $("hint").textContent = source === "camera" ? "Avvio della webcam e del riconoscimento…" : "Avvio della simulazione…";
-  try {
-    if (source === "camera") {
-      app.cam = await new Camera(cfg.camera).start();
-      app.tracker = await Tracker.create(cfg, ".");
-      say(`camera ${app.cam.settings.width}x${app.cam.settings.height} · elaborazione ${app.tracker.delegate}`);
-    } else {
-      app.sim = new SimulatedVisitor({ restFor: 8 });
-      say("simulazione");
-    }
-  } catch (e) {
-    $("hint").innerHTML = `<span class="err">${e.message}</span>`;
-    return;
-  }
+  await audio.start();                                   // l'audio può partire solo dopo un clic
   app.source = source;
   app.motion = new MotionProcessor(cfg);
+  if (source === "camera") {
+    if (!(await cameraOn())) { $("hint").innerHTML = `<span class="err">${app.messages.at(-1)?.[1] ?? "Webcam non disponibile"}</span>`; app.source = null; return; }
+  } else {
+    app.sim = new SimulatedVisitor({ restFor: 8 });
+    say("simulazione");
+  }
   app.t0 = performance.now();
   app.playing = true;
   $("start").style.display = "none";
   attract.fadeToBlack(false);
+  buildParams();
+  refreshUI();
+  showBar();
 }
 $("go-camera").onclick = () => start("camera");
 $("go-demo").onclick = () => start("demo");
 
 // ---------------------------------------------------------------- ciclo
-let last = performance.now(), lastSim = 0, frames = 0, fpsT = last;
+let last = performance.now(), lastSim = 0, frames = 0, fpsT = last, lastUI = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
-  let st = null;
-  if (app.source === "camera" && app.cam.newFrame()) {
+  if (app.source === "camera" && app.cam && app.tracker && app.cam.newFrame()) {
     app.obs = app.tracker.process(app.cam.video, app.cam.frameId);
     if (app.playing) app.state = app.motion.update(app.obs);
   } else if (app.source === "demo" && app.playing) {
@@ -146,13 +283,15 @@ function frame(now) {
     if (t - lastSim >= 1 / 30) { lastSim = t; app.obs = app.sim.observe(t); app.state = app.motion.update(app.obs); }
   }
   if (!app.playing) app.state = null;
-  st = app.state;
+  const st = app.state;
   if (st) for (const e of st.events) if (e.kind === "complete") say(`filo completato (${e.data.reason}, ${e.data.strokes} gesti)`);
   engine.update(st, dt);
+  audio.update(st, dt, app.playing);
   if (st) st.events = [];
   if (engine.sphere.count !== app.ringCount) {
     app.ringCount = engine.sphere.count;
     saveSphere();
+    audio.chime(app.ringCount);
     say(`nuovo anello — la sfera ne ha ${engine.sphere.rings.length}`);
   }
   attract.update(dt, app.playing, st ? st.personPresence : 0);
@@ -161,7 +300,86 @@ function frame(now) {
   if (app.debug) drawDebug();
   frames++;
   if (now - fpsT > 1000) { app.fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; }
+  if (now - lastUI > 500) { lastUI = now; refreshStatus(); }
   requestAnimationFrame(frame);
+}
+
+// ---------------------------------------------------------------- barra dei comandi
+let barTimer = 0;
+function showBar() {
+  if (!app.source) return;
+  $("bar").classList.add("show");
+  document.body.classList.remove("hide-cursor");
+  clearTimeout(barTimer);
+  barTimer = setTimeout(() => {
+    if ($("bar").matches(":hover") || $("drawer").classList.contains("open")) return showBar();
+    $("bar").classList.remove("show");
+    document.body.classList.add("hide-cursor");
+  }, 3000);
+}
+addEventListener("mousemove", showBar);
+addEventListener("touchstart", showBar, { passive: true });
+
+function changeVolume(delta) { setParam("audio.master_volume", value("audio.master_volume") + delta); }
+function toggleMute() { audio.setMuted(!audio.muted); toast(audio.muted ? "audio silenziato" : "audio attivo"); refreshUI(); }
+function toggleFull() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => toast("schermo intero non disponibile")); }
+function toggleDrawer(open = !$("drawer").classList.contains("open")) {
+  $("drawer").classList.toggle("open", open);
+  document.body.classList.toggle("drawer-open", open);
+  refreshStatus();
+  showBar();
+}
+
+$("b-play").onclick = () => setPlaying(!app.playing);
+$("b-voldown").onclick = () => changeVolume(-0.05);
+$("b-volup").onclick = () => changeVolume(0.05);
+$("b-mute").onclick = toggleMute;
+$("b-full").onclick = toggleFull;
+$("b-settings").onclick = () => toggleDrawer();
+$("d-close").onclick = () => toggleDrawer(false);
+$("d-reset").onclick = () => { if (confirm("Tornare ai valori iniziali? Le regolazioni salvate verranno dimenticate.")) { overrides = {}; clearSettings(); applyConfig(); toast("valori iniziali"); } };
+$("d-clear").onclick = () => { if (confirm("Azzerare la sfera? Resterà un solo anello.")) clearSphere(); };
+document.addEventListener("fullscreenchange", refreshUI);
+
+function refreshUI() {
+  $("b-play").textContent = app.playing ? "Pausa" : "Riprendi";
+  $("b-vol").textContent = Math.round(value("audio.master_volume") * 100) + "%";
+  $("b-mute").classList.toggle("on", audio.muted);
+  $("b-mute").textContent = audio.muted ? "Muto ✓" : "Muto";
+  $("b-full").textContent = document.fullscreenElement ? "Esci da schermo intero" : "Schermo intero";
+  for (const p of PARAMS) {
+    const el = $("p-" + p[0].replace(".", "-"));
+    if (el && document.activeElement !== el.querySelector("input")) {
+      el.querySelector("input").value = value(p[0]);
+      el.querySelector("b").textContent = formatParam(p[0], value(p[0]));
+    }
+  }
+}
+
+function buildParams() {
+  const box = $("d-params");
+  if (box.childElementCount) return;
+  let group = "";
+  for (const [id, label, grp, lo, hi, step, , hint] of PARAMS) {
+    if (grp !== group) { group = grp; const h = document.createElement("h3"); h.textContent = grp; box.appendChild(h); }
+    const el = document.createElement("div");
+    el.className = "slider"; el.id = "p-" + id.replace(".", "-");
+    el.innerHTML = `<label><span>${label}</span><b></b></label><input type="range" min="${lo}" max="${hi}" step="${step}">${hint ? `<div class="hint">${hint}</div>` : ""}`;
+    const input = el.querySelector("input");
+    input.addEventListener("input", () => { el.querySelector("b").textContent = formatParam(id, +input.value); setParam(id, +input.value, false); });
+    box.appendChild(el);
+  }
+}
+
+function refreshStatus() {
+  if (!$("drawer").classList.contains("open")) return;
+  const st = app.state;
+  const cam = app.source === "demo" ? "simulazione" : app.cam ? `accesa ${app.cam.settings.width}x${app.cam.settings.height}, ${app.cam.fps().toFixed(0)} fps` : "spenta (pausa)";
+  $("d-status").innerHTML = `Stato: <b>${app.playing ? "esperienza attiva" : "in pausa"}</b><br>Camera: <b>${cam}</b><br>` +
+    `Persona: <b>${st && st.personPresence > 0.5 ? "presente" : "nessuno"}</b> · grafica <b>${app.fps.toFixed(0)}</b> fps<br>` +
+    `Audio: <b>${audio.ok ? (audio.muted ? "silenziato" : "attivo") : "non disponibile"}</b>${audio.musicName ? " · musica " + audio.musicName : " · nessuna musica (web/audio/musica.mp3)"}`;
+  $("d-sphere").innerHTML = `Anelli: <b>${engine.sphere.rings.length}</b> · da questo avvio: <b>${engine.sphere.rings.length - app.ringsAtStart}</b>` +
+    (st ? `<br>Intreccio <b>${st.sessionActive ? "in corso" : "in attesa"}</b> · braccia a riposo da <b>${st.restTime.toFixed(0)}</b> s` : "");
 }
 
 // ---------------------------------------------------------------- debug
@@ -169,14 +387,11 @@ const dbg = $("dbgcam").getContext("2d");
 function drawDebug() {
   const W = 560, H = 315, obs = app.obs, st = app.state, minVis = cfg.tracking.min_visibility;
   dbg.fillStyle = "#111"; dbg.fillRect(0, 0, W, H);
-  if (app.cam) {
-    dbg.save(); if (cfg.camera.mirror) { dbg.translate(W, 0); dbg.scale(-1, 1); }
-    dbg.drawImage(app.cam.video, 0, 0, W, H); dbg.restore();
-  }
+  if (app.cam) { dbg.save(); if (cfg.camera.mirror) { dbg.translate(W, 0); dbg.scale(-1, 1); } dbg.drawImage(app.cam.video, 0, 0, W, H); dbg.restore(); }
+  else { dbg.fillStyle = "#777"; dbg.font = "15px DM Sans"; dbg.fillText(app.source === "demo" ? "simulazione" : "camera spenta", 220, 160); }
   const v = engine.p, z = v.input_zoom;
   dbg.strokeStyle = "#f53c3c"; dbg.lineWidth = 1;
   dbg.strokeRect((v.input_center_x - 0.5 / z) * W, (v.input_center_y - 0.5 / z) * H, W / z, H / z);
-  dbg.fillStyle = "#f53c3c"; dbg.font = "11px DM Sans"; dbg.fillText("zona schermo", (v.input_center_x - 0.5 / z) * W + 4, (v.input_center_y - 0.5 / z) * H + 13);
   const COL = { left: "#ff50dc", right: "#3cdcff" };
   if (obs && obs.present) for (const s of SIDES) {
     const a = obs.arms[s], ch = [a.shoulder, a.elbow, a.wrist];
@@ -184,49 +399,39 @@ function drawDebug() {
     for (let i = 0; i < 2; i++) if (Math.min(ch[i].visibility, ch[i + 1].visibility) >= minVis) { dbg.beginPath(); dbg.moveTo(ch[i].x * W, ch[i].y * H); dbg.lineTo(ch[i + 1].x * W, ch[i + 1].y * H); dbg.stroke(); }
     for (const p of ch) { dbg.beginPath(); dbg.arc(p.x * W, p.y * H, 4, 0, 7); p.visibility >= minVis ? dbg.fill() : dbg.stroke(); }
   }
-  if (st) for (const s of SIDES) { const a = st.arms[s]; if (a.presence > 0.05) { dbg.strokeStyle = "#fff"; dbg.lineWidth = 2; dbg.beginPath(); dbg.arc(a.pos[0] * W, a.pos[1] * H, 8, 0, 7); dbg.stroke(); } }
+  if (st) for (const s of SIDES) { const a = st.arms[s]; if (a.presence > 0.05) { dbg.strokeStyle = "#fff"; dbg.beginPath(); dbg.arc(a.pos[0] * W, a.pos[1] * H, 8, 0, 7); dbg.stroke(); } }
   const lines = [`${app.playing ? "ATTIVA" : "IN PAUSA"} · grafica ${app.fps.toFixed(0)} fps · anelli ${engine.sphere.rings.length}` +
-    (app.cam ? ` · camera ${app.cam.fps().toFixed(0)} fps · ${obs ? obs.poseMs.toFixed(1) : "–"} ms` : " · simulazione")];
+    (app.cam ? ` · camera ${app.cam.fps().toFixed(0)} fps · ${obs ? obs.poseMs.toFixed(1) : "–"} ms` : "")];
   if (st) lines.push(`intreccio ${st.sessionActive ? "IN CORSO" : "in attesa"} · riposo ${st.restTime.toFixed(1)} s · assente ${st.absentTime.toFixed(1)} s`);
-  const now = performance.now();
-  for (const [t, m] of app.messages) if (now - t < 8000) lines.push(`<span class="msg">${m}</span>`);
+  const t = performance.now();
+  for (const [tm, m] of app.messages) if (t - tm < 8000) lines.push(`<span class="msg">${m}</span>`);
   $("dbglines").innerHTML = lines.join("\n");
 }
 
 // ---------------------------------------------------------------- tasti
 addEventListener("keydown", (ev) => {
-  if (!app.source) return;
+  if (!app.source || ev.target.tagName === "INPUT") return;
   const k = ev.key.toLowerCase();
-  if (k === "f") {
-    if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {});
-  } else if (k === " ") {
-    ev.preventDefault();
-    app.playing = !app.playing;
-    say(app.playing ? "esperienza avviata" : "in pausa (in attesa)");
-  } else if (k === "d") {
-    app.debug = !app.debug;
-    $("debug").style.display = app.debug ? "block" : "none";
-  } else if (k === "c") {
-    if (now() - app.clearArmed < 2000) {
-      app.clearArmed = 0;
-      engine.sphere.clear(engine.t, engine.p.initial_rings);
-      app.ringCount = engine.sphere.count;
-      saveSphere();
-      say("sfera azzerata");
-    } else { app.clearArmed = now(); say("premi di nuovo C entro 2 s per azzerare la sfera"); }
+  if (k === " ") { ev.preventDefault(); setPlaying(!app.playing); }
+  else if (k === "f") toggleFull();
+  else if (k === "+" || k === "=") changeVolume(0.05);
+  else if (k === "-") changeVolume(-0.05);
+  else if (k === "m") toggleMute();
+  else if (k === "d") { app.debug = !app.debug; $("debug").style.display = app.debug ? "block" : "none"; }
+  else if (k === "escape") toggleDrawer(false);
+  else if (k === "c") {
+    const t = performance.now();
+    if (t - app.clearArmed < 2000) { app.clearArmed = 0; clearSphere(); }
+    else { app.clearArmed = t; toast("premi di nuovo C entro 2 s per azzerare la sfera"); }
   }
 });
-const now = () => performance.now();
 
-// cursore nascosto dopo 2 s di immobilità del mouse
-let cursorTimer = 0;
-addEventListener("mousemove", () => {
-  document.body.classList.remove("hide-cursor");
-  clearTimeout(cursorTimer);
-  cursorTimer = setTimeout(() => app.source && document.body.classList.add("hide-cursor"), 2000);
-});
+// ---------------------------------------------------------------- funzionamento offline
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
 
-window.__mh = { app, get engine() { return engine; }, start };
+window.__mh = { app, get engine() { return engine; }, audio, start, setPlaying, setParam };
 </script>
 </body>
 </html>
