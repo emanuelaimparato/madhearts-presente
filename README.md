@@ -117,7 +117,7 @@ Serve Python 3.12 (https://www.python.org/downloads/macos/, installer "universal
 Poi, dal Terminale:
 
 ```bash
-git clone https://github.com/PROPRIETARIO/REPOSITORY.git madhearts
+git clone https://github.com/emanuelaimparato/madhearts-presente.git madhearts
 cd madhearts
 bash installa.sh
 ```
