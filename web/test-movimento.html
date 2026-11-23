@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MadHearts web — test movimento</title>
+<style>
+  @font-face { font-family: "League Gothic"; src: url("assets/fonts/LeagueGothic.ttf"); }
+  @font-face { font-family: "DM Sans"; src: url("assets/fonts/DMSans.ttf"); }
+  :root { --red: #F5383C; --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; --card: #0f0f0f; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; }
+  body { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: 36px; margin: 0 0 12px; }
+  h1 span { color: var(--red); }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  button, select { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #1a1a1a; color: #fff; }
+  button.primary { background: var(--red); border-color: var(--red); }
+  .stage { position: relative; background: #111; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .info { font-variant-numeric: tabular-nums; line-height: 1.7; margin-top: 10px; }
+  .info b { color: #fff; font-weight: 500; }
+  pre { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; white-space: pre-wrap; }
+  .err { color: #ff8485; }
+  .muted { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Mad<span>Hearts</span> web — test movimento</h1>
+<div class="bar">
+  <button class="primary" id="start">Avvia camera</button>
+  <button id="sim">Simulazione (senza camera)</button>
+  <select id="cam" title="Webcam"></select>
+  <button id="bg">Camera visibile: sì</button>
+  <button id="summary">Riepilogo</button>
+  <button id="reset">Azzera statistiche</button>
+</div>
+<div class="stage"><canvas id="view" width="1280" height="720"></canvas></div>
+<div class="info" id="info">Premi <b>Avvia camera</b> (o Simulazione). Nessuna immagine viene salvata.</div>
+<pre id="out" hidden></pre>
+<p class="muted">Grigio = polso grezzo · cerchio colorato = polso filtrato (opacità = presenza) · freccia = velocità · in basso la velocità filtrata degli ultimi 5 s.
+Prova suggerita: il gesto di portare il filo da un anello all'altro, lento e veloce; incrocia le braccia; abbassa le braccia per 5 s (deve comparire FILO COMPLETATO); esci dall'inquadratura e rientra.</p>
+
+<script type="module">
+import { DEFAULTS, deepMerge } from "./js/config.js";
+import { Camera, listCameras } from "./js/camera.js";
+import { Tracker, SIDES } from "./js/tracking.js";
+import { MotionProcessor, TRACKING, HOLDING, LOST } from "./js/motion.js";
+import { SimulatedVisitor } from "./js/simulate.js";
+
+const $ = (id) => document.getElementById(id);
+const view = $("view"), g = view.getContext("2d");
+const COLORS = { left: "#ff50dc", right: "#3cdcff" };
+const NAMES = { stroke: "TRATTO", turn: "SVOLTA", cross: "INCROCIO", uncross: "SCIOLTO", meet: "INCONTRO", part: "SEPARAZIONE", appear: "APPARE", lost: "PERSO", complete: "FILO COMPLETATO" };
+let cfg = deepMerge(DEFAULTS, {});
+let cam = null, tracker = null, sim = null, motion = null, running = false, showCam = true, t0 = 0;
+let trails, graph, banners, prevRaw, stats;
+const recFrames = [];
+
+function reset() {
+  trails = { left: [], right: [] }; graph = { left: [], right: [] }; banners = []; prevRaw = { left: null, right: null };
+  stats = { n: 0, t0: performance.now(), state: { left: {}, right: {} }, rawJ: { left: 0, right: 0 }, filJ: { left: 0, right: 0 },
+            rawJit: { left: [], right: [] }, filJit: { left: [], right: [] }, prevF: { left: null, right: null }, prevSeg: {}, ev: {} };
+}
+reset();
+
+async function fillCameras() {
+  const cams = await listCameras();
+  $("cam").innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || "webcam " + (i + 1)}</option>`).join("");
+}
+
+function stop() { running = false; cam?.stop(); cam = null; tracker?.close(); tracker = null; sim = null; }
+
+async function startCamera() {
+  stop();
+  $("info").textContent = "Avvio della camera e del modello…";
+  try {
+    cfg = deepMerge(cfg, { camera: { deviceId: $("cam").value || "" } });
+    cam = await new Camera(cfg.camera).start();
+    await fillCameras();
+    tracker = await Tracker.create(cfg, ".");
+  } catch (e) { $("info").innerHTML = `<span class="err">${e.message}</span>`; return; }
+  view.width = cam.settings.width; view.height = cam.settings.height;
+  begin();
+}
+
+function startSim() {
+  stop();
+  sim = new SimulatedVisitor({ restFor: 8 });
+  view.width = 1280; view.height = 720;
+  begin();
+}
+
+function begin() {
+  motion = new MotionProcessor(cfg);
+  reset(); t0 = performance.now(); running = true;
+  requestAnimationFrame(loop);
+}
+
+let lastSim = 0;
+function loop() {
+  if (!running) return;
+  let obs = null;
+  if (cam && cam.newFrame()) obs = tracker.process(cam.video, cam.frameId);
+  else if (sim) {
+    const t = (performance.now() - t0) / 1000;
+    if (t - lastSim >= 1 / 30) { lastSim = t; obs = sim.observe(t); }
+  }
+  if (obs) {
+    const now = performance.now();
+    recFrames.push(now); while (recFrames.length && now - recFrames[0] > 2000) recFrames.shift();
+    const st = motion.update(obs);
+    addStats(st, obs);
+    draw(st, obs);
+  }
+  requestAnimationFrame(loop);
+}
+
+function addStats(st, obs) {
+  stats.n++;
+  const sw = obs.shoulderWidth || 0.2, asp = obs.aspect;
+  const d = (a, b) => Math.hypot((a[0] - b[0]) * asp, a[1] - b[1]) / (sw * asp);
+  for (const e of st.events) stats.ev[e.kind] = (stats.ev[e.kind] || 0) + 1;
+  for (const s of SIDES) {
+    const a = st.arms[s];
+    stats.state[s][a.state] = (stats.state[s][a.state] || 0) + 1;
+    if (a.raw && prevRaw[s]) {
+      const j = d(a.raw, prevRaw[s]); if (j > 0.35) stats.rawJ[s]++;
+      if (a.speed < 0.3) stats.rawJit[s].push(j);
+    }
+    if (a.state !== LOST && stats.prevF[s] && stats.prevSeg[s] === a.segmentId) {
+      const j = d(a.pos, stats.prevF[s]); if (j > 0.35) stats.filJ[s]++;
+      if (a.speed < 0.3 && a.raw) stats.filJit[s].push(j);
+    }
+    prevRaw[s] = a.raw; stats.prevF[s] = a.state !== LOST ? a.pos : null; stats.prevSeg[s] = a.segmentId;
+  }
+}
+
+function draw(st, obs) {
+  const W = view.width, H = view.height, now = performance.now();
+  g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+  if (cam && showCam) {
+    g.save(); g.globalAlpha = 0.45;
+    if (cfg.camera.mirror) { g.translate(W, 0); g.scale(-1, 1); }
+    g.drawImage(cam.video, 0, 0, W, H); g.restore();
+  }
+  const px = (p) => [p[0] * W, p[1] * H];
+  for (const e of st.events) {
+    let txt = NAMES[e.kind] || e.kind;
+    if (e.side) txt += e.side === "left" ? " SX" : " DX";
+    if (e.kind === "stroke") txt += `  ${e.data.length.toFixed(1)} sw in ${e.data.duration.toFixed(2)} s`;
+    if (e.kind === "complete") txt += `  (${e.data.reason}, ${e.data.strokes} gesti)`;
+    banners.push({ t: now, txt, col: e.side ? COLORS[e.side] : "#78ffff" });
+  }
+  const sw = obs.shoulderWidth || 0.2;
+  for (const s of SIDES) {
+    const a = st.arms[s], col = COLORS[s];
+    graph[s].push([now, a.speed]);
+    if (a.raw) { const [x, y] = px(a.raw); g.fillStyle = "#999"; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); }
+    if (a.state === LOST && a.presence <= 0.01) { trails[s] = []; continue; }
+    trails[s].push([a.segmentId, px(a.pos)]); if (trails[s].length > 45) trails[s].shift();
+    g.strokeStyle = col;
+    for (let i = 1; i < trails[s].length; i++) {
+      if (trails[s][i][0] !== trails[s][i - 1][0]) continue;
+      g.lineWidth = 1 + i / 8; g.beginPath(); g.moveTo(...trails[s][i - 1][1]); g.lineTo(...trails[s][i][1]); g.stroke();
+    }
+    const [cx, cy] = px(a.pos);
+    g.globalAlpha = Math.max(a.presence, 0.05);
+    g.lineWidth = a.state === TRACKING ? 3 : 1;
+    g.beginPath(); g.arc(cx, cy, 10 + 28 * a.amplitude, 0, 7); g.stroke();
+    g.fillStyle = col; g.beginPath(); g.arc(cx, cy, 7, 0, 7); g.fill();
+    if (a.speed > 0.05) {
+      const ex = cx + a.vel[0] * sw * W * 0.25, ey = cy + a.vel[1] * sw * W * 0.25;
+      g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy); g.lineTo(ex, ey); g.stroke();
+    }
+    g.globalAlpha = 1;
+  }
+  // grafico velocità (ultimi 5 s)
+  const gh = 110, gy = H - 12;
+  for (const [k, s] of SIDES.entries()) {
+    graph[s] = graph[s].filter((q) => now - q[0] < 5000);
+    g.strokeStyle = COLORS[s]; g.lineWidth = 2; g.beginPath();
+    graph[s].forEach((q, i) => { const x = W - ((now - q[0]) / 5000) * W, y = gy - k * 4 - Math.min(q[1] / 10, 1) * gh; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+  }
+  g.font = "16px DM Sans, sans-serif"; g.fillStyle = "#ccc"; g.fillText("velocità filtrata (0–10 sw/s)", 14, gy - gh - 8);
+  banners = banners.filter((b) => now - b.t < 1800).slice(-6);
+  g.font = "bold 26px DM Sans, sans-serif";
+  banners.forEach((b, i) => { g.fillStyle = b.col; g.fillText(b.txt, W - 560, 44 + i * 34); });
+
+  const rec = recFrames.length > 1 ? ((recFrames.length - 1) * 1000) / (recFrames.at(-1) - recFrames[0]) : 0;
+  const L = st.arms.left, R = st.arms.right;
+  const line = (n, a) => `${n} <b>${a.state}</b> pres ${a.presence.toFixed(2)} · vel ${a.speed.toFixed(1)} · ampiezza ${a.amplitude.toFixed(2)} · elev ${a.elevation >= 0 ? "+" : ""}${a.elevation.toFixed(1)}`;
+  $("info").innerHTML =
+    (cam ? `Camera <b>${cam.fps().toFixed(1)}</b> fps · riconoscimento <b>${rec.toFixed(1)}</b> fps · <b>${obs.poseMs.toFixed(1)}</b> ms · ${tracker.delegate}<br>` : `<b>Simulazione</b> · ${rec.toFixed(0)} fps<br>`) +
+    `${line("SX", L)}<br>${line("DX", R)}<br>` +
+    `Distanza polsi <b>${st.wristDistance.toFixed(2)}</b> sw · ${st.crossed ? "<b>INCROCIATE</b>" : "non incrociate"} · energia ${st.energy.toFixed(2)}<br>` +
+    `Intreccio <b>${st.sessionActive ? "IN CORSO" : "in attesa"}</b> · braccia a riposo da <b>${st.restTime.toFixed(1)}</b> s · fuori inquadratura da <b>${st.absentTime.toFixed(1)}</b> s`;
+}
+
+function summary() {
+  const pct = (c, k) => { const n = Object.values(c).reduce((a, b) => a + b, 0) || 1; return ((100 * (c[k] || 0)) / n).toFixed(1).padStart(5) + "%"; };
+  const jit = (v) => (v.length ? (100 * v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) + "%" : "n/d");
+  const out = [`===== RIEPILOGO WEB 2 (copialo nella risposta) =====`,
+    `sorgente           ${cam ? "camera " + cam.settings.width + "x" + cam.settings.height + ", " + cam.fps().toFixed(1) + " fps" : "simulazione"}`,
+    `fotogrammi         ${stats.n}  (${((performance.now() - stats.t0) / 1000).toFixed(0)} s)`];
+  for (const [s, n] of [["left", "SX"], ["right", "DX"]]) {
+    const arm = motion.arms[s];
+    out.push(`--- braccio ${n}`,
+      `tracking/inerzia/perso   ${pct(stats.state[s], TRACKING)} / ${pct(stats.state[s], HOLDING)} / ${pct(stats.state[s], LOST)}`,
+      `salti grezzi -> filtrati ${stats.rawJ[s]} -> ${stats.filJ[s]}`,
+      `tremolio da fermo        ${jit(stats.rawJit[s])} -> ${jit(stats.filJit[s])} (della larghezza spalle, per fotogramma)`,
+      `errori scartati          ${arm.stats.outliers}`,
+      `ripartenze traccia       ${arm.stats.resets}`);
+  }
+  out.push(`--- coppia`, `scambi sx<->dx corretti  ${motion.stats.swapsCorrected}`,
+    `eventi                   ` + Object.entries(stats.ev).map(([k, v]) => `${NAMES[k] || k} ${v}`).join(", "));
+  $("out").hidden = false; $("out").textContent = out.join("\n");
+}
+
+$("start").onclick = startCamera;
+$("sim").onclick = startSim;
+$("bg").onclick = () => { showCam = !showCam; $("bg").textContent = "Camera visibile: " + (showCam ? "sì" : "no"); };
+$("summary").onclick = summary;
+$("reset").onclick = () => { reset(); $("out").hidden = true; };
+$("cam").onchange = () => cam && startCamera();
+window.__mh = { get stats() { return stats; }, summary, startSim };
+fillCameras().catch(() => {});
+</script>
+</body>
+</html>

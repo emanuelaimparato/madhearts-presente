@@ -12,6 +12,9 @@ export class Camera {
     this.video = document.createElement("video");
     this.video.playsInline = true;
     this.video.muted = true;
+    // nella pagina ma invisibile: alcuni browser segnalano i fotogrammi solo per video presenti nel documento
+    Object.assign(this.video.style, { position: "fixed", left: "0", top: "0", width: "2px", height: "2px", opacity: "0.01", pointerEvents: "none" });
+    document.body.appendChild(this.video);
     this.stream = null;
     this.frameTimes = [];
     this.lastVideoTime = -1;
@@ -36,6 +39,18 @@ export class Camera {
     }
     this.video.srcObject = this.stream;
     await this.video.play();
+    // Ogni fotogramma VERO della camera: requestVideoFrameCallback (Chrome, Safari 15.4+).
+    // L'orologio del video (currentTime) in alcuni browser avanza anche tra un fotogramma e
+    // l'altro, e farebbe analizzare più volte lo stesso fotogramma.
+    this.fresh = false;
+    if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+      const onFrame = () => {
+        this.fresh = true;
+        if (this.stream) this.video.requestVideoFrameCallback(onFrame);
+      };
+      this.video.requestVideoFrameCallback(onFrame);
+      this.useCallback = true;
+    }
     const s = this.stream.getVideoTracks()[0].getSettings();
     this.settings = { width: s.width, height: s.height, fps: s.frameRate, label: this.stream.getVideoTracks()[0].label };
     return this;
@@ -43,9 +58,15 @@ export class Camera {
 
   // true se è arrivato un fotogramma nuovo dall'ultima chiamata
   newFrame() {
-    const t = this.video.currentTime;
-    if (t === this.lastVideoTime || this.video.readyState < 2) return false;
-    this.lastVideoTime = t;
+    if (this.video.readyState < 2) return false;
+    if (this.useCallback) {
+      if (!this.fresh) return false;
+      this.fresh = false;
+    } else {
+      const t = this.video.currentTime;
+      if (t === this.lastVideoTime) return false;
+      this.lastVideoTime = t;
+    }
     this.frameId++;
     const now = performance.now();
     this.frameTimes.push(now);
@@ -61,5 +82,6 @@ export class Camera {
   stop() {
     if (this.stream) this.stream.getTracks().forEach((t) => t.stop());
     this.stream = null;
+    this.video.remove();
   }
 }

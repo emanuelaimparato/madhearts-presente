@@ -8,7 +8,8 @@
 
 import { FilesetResolver, PoseLandmarker } from "../vendor/mediapipe/vision_bundle.mjs";
 
-export const SIDES = ["left", "right"];
+import { SIDES } from "./common.js";
+export { SIDES };
 const IDX = { shoulder: [11, 12], elbow: [13, 14], wrist: [15, 16], pinky: [17, 18], index: [19, 20], thumb: [21, 22], hip: [23, 24] };
 
 export class Tracker {
