@@ -11,7 +11,7 @@ const PENTA = [293.66, 329.63, 369.99, 440.0, 493.88, 587.33, 659.25];   // Re m
 
 export const AUDIO_DEFAULTS = {
   enabled: true, music_file: "audio/musica.mp3",
-  master_volume: 0.8, music_volume: 0.5, ambient_volume: 0.5, ambient_idle: 0.35, trail_volume: 0.6, chime_volume: 0.6,
+  master_volume: 0.8, music_volume: 0.5, effects_volume: 1.0, ambient_volume: 0.5, ambient_idle: 0.35, trail_volume: 0.6, chime_volume: 0.6,
 };
 
 export class Audio {
@@ -148,7 +148,7 @@ export class Audio {
     const now = this.ac.currentTime;
     this.master.gain.setTargetAtTime(this.muted ? 0 : this.v.master_volume, now, 0.15);
     if (this.musicGain) this.musicGain.gain.setTargetAtTime(this.v.music_volume, now, 0.2);
-    this.chimeBus.gain.setTargetAtTime(this.v.chime_volume, now, 0.1);
+    this.chimeBus.gain.setTargetAtTime(this.v.chime_volume * this.v.effects_volume, now, 0.1);
   }
 
   setMuted(m) { this.muted = m; if (this.ok) this._applyStatic(); }
@@ -159,7 +159,7 @@ export class Audio {
     const presence = state && playing ? state.personPresence : 0;
     const k = 1 - Math.exp(-dt / 0.6);
     this.padLevel += k * (v.ambient_idle + (1 - v.ambient_idle) * presence - this.padLevel);
-    this.padGain.gain.setTargetAtTime(v.ambient_volume * this.padLevel, now, 0.05);
+    this.padGain.gain.setTargetAtTime(v.ambient_volume * v.effects_volume * this.padLevel, now, 0.05);
     const kb = 1 - Math.exp(-dt / 0.25);
     for (const [side, b] of Object.entries(this.brushVoices)) {
       let target = 0, x = 0.5;
@@ -169,7 +169,7 @@ export class Audio {
         x = Math.min(Math.max(a.pos[0], 0), 1);
       }
       b.level += kb * (target - b.level);
-      b.out.gain.setTargetAtTime(v.trail_volume * b.level, now, 0.05);
+      b.out.gain.setTargetAtTime(v.trail_volume * v.effects_volume * b.level, now, 0.05);
       b.pan.pan.setTargetAtTime(x * 2 - 1, now, 0.1);
     }
   }

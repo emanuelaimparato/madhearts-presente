@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>MadHearts — Telecomando</title>
+<link rel="icon" href="assets/icona.png">
+<style>
+  @font-face { font-family: "League Gothic"; src: url("assets/fonts/LeagueGothic.ttf"); }
+  @font-face { font-family: "DM Sans"; src: url("assets/fonts/DMSans.ttf"); }
+  :root { --red: #F5383C; --pink: #FF8485; --ink: #EDEDED; --muted: #9a9a9a; --line: rgba(255,255,255,.12); --card: #101010; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); max-width: 520px; margin: 0 auto; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  .gothic { font-family: "League Gothic", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .03em; font-weight: 400; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  header img { width: 48px; }
+  header h1 { font-size: 30px; margin: 0; line-height: 1; }
+  header .st { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: #3ddc84; } .dot.live { background: var(--red); animation: p 1.6s infinite; }
+  @keyframes p { 50% { opacity: .35; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+  .big { width: 100%; font-family: "League Gothic", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 40px; padding: 16px; border-radius: 16px;
+         background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .big.paused { background: #fff; color: #000; }
+  .big svg { width: 30px; height: 30px; }
+  .row { display: flex; gap: 10px; margin-top: 12px; }
+  .chip { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.06); font-size: 15px; }
+  .chip.on { border-color: var(--red); color: var(--red); }
+  .info { font-size: 13px; color: var(--muted); line-height: 1.7; margin-top: 12px; }
+  .info b { color: var(--ink); font-weight: 500; }
+  h2 { font-size: 24px; margin: 0 0 6px; }
+  .slider { margin: 14px 0; }
+  .slider label { display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 6px; }
+  .slider label b { color: #fff; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .slider .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 34px; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 6px; background: linear-gradient(90deg, var(--red) var(--p, 50%), rgba(255,255,255,.18) var(--p, 50%)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; border-radius: 50%; background: #fff; margin-top: -10px; }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 6px; background: rgba(255,255,255,.18); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 6px; background: var(--red); }
+  input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border: none; border-radius: 50%; background: #fff; }
+  details summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after { content: "+"; font-size: 26px; color: var(--muted); }
+  details[open] summary::after { content: "−"; }
+  details h3 { font-size: 20px; margin: 18px 0 0; color: #fff; }
+  #pinbox { text-align: center; }
+  #pinbox input { font-family: "League Gothic", sans-serif; font-size: 52px; letter-spacing: .25em; text-align: center; width: 100%; padding: 10px; margin: 14px 0;
+                  background: #000; color: #fff; border: 1px solid var(--line); border-radius: 14px; }
+  .err { color: var(--pink); font-size: 14px; min-height: 20px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <img src="assets/logo.png" alt="MadHearts">
+  <h1 class="gothic">Telecomando</h1>
+  <div class="st"><span class="dot" id="dot"></span><span id="status">collegamento…</span></div>
+</header>
+
+<section class="card hidden" id="pinbox">
+  <h2 class="gothic">PIN</h2>
+  <div class="info" style="margin-top:0">Inserisci il PIN che vedi nelle impostazioni dell'esperienza, sezione Telefono.</div>
+  <input id="pin" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="····">
+  <button class="big" id="pin-go">Collega</button>
+  <div class="err" id="pin-err"></div>
+</section>
+
+<main class="hidden" id="main">
+  <section class="card">
+    <button class="big" id="play"></button>
+    <div class="row">
+      <button class="chip" id="mute">Muto</button>
+    </div>
+    <div class="info" id="info"></div>
+  </section>
+  <section class="card" id="vols"><h2 class="gothic">Volume</h2></section>
+  <section class="card">
+    <details id="adv"><summary><h2 class="gothic" style="margin:0">Impostazioni</h2></summary><div id="advbox"></div></details>
+  </section>
+</main>
+
+<section class="card hidden" id="nohost">
+  <h2 class="gothic">Nessun collegamento</h2>
+  <div class="info" style="margin-top:0">Apri questa pagina inquadrando il codice QR che trovi nelle impostazioni dell'esperienza, sezione Telefono.</div>
+</section>
+
+<script src="vendor/peerjs/peerjs.min.js"></script>
+<script type="module">
+import { PARAMS, PARAM, USER_PARAMS, TECH_GROUPS, formatParam } from "./js/settings.js";
+import { peerServer } from "./js/remote-host.js";
+
+const $ = (id) => document.getElementById(id);
+const hostId = decodeURIComponent(location.hash.slice(1));
+const PIN_KEY = "madhearts.telecomando.pin." + hostId;
+const ICON_PAUSE = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>`;
+const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>`;
+let conn = null, peer = null, state = null, authed = false;
+const sendTimers = {};
+const read = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* privato */ } };
+
+function status(text, cls = "") { $("status").textContent = text; $("dot").className = "dot " + cls; }
+function show(id) { for (const s of ["pinbox", "main", "nohost"]) $(s).classList.toggle("hidden", s !== id); }
+function send(msg) { if (conn && conn.open) conn.send(msg); }
+
+if (!hostId) { show("nohost"); status("—"); }
+else connect();
+
+function connect() {
+  status("collegamento…");
+  peer = new window.Peer({ debug: 0, ...peerServer() });
+  peer.on("open", () => {
+    conn = peer.connect(hostId, { reliable: true });
+    conn.on("open", () => {
+      const pin = read(PIN_KEY);
+      if (pin) hello(pin); else { show("pinbox"); status("in attesa del PIN"); }
+    });
+    conn.on("data", onData);
+    conn.on("close", () => { authed = false; status("scollegato: riprovo…"); setTimeout(retry, 2500); });
+  });
+  peer.on("error", (e) => {
+    if (e.type === "peer-unavailable") status("esperienza non raggiungibile: è aperta? riprovo…");
+    else status("serve Internet: riprovo…");
+    setTimeout(retry, 4000);
+  });
+}
+function retry() { try { peer?.destroy(); } catch (e) { /* già chiuso */ } connect(); }
+function hello(pin) { send({ type: "hello", pin }); store("madhearts.lastpin", pin); conn._pin = pin; }
+
+$("pin-go").onclick = () => { $("pin-err").textContent = ""; hello($("pin").value.trim()); };
+$("pin").addEventListener("keydown", (e) => e.key === "Enter" && $("pin-go").click());
+
+function onData(msg) {
+  if (msg.type === "welcome") { authed = true; store(PIN_KEY, conn._pin); show("main"); status("collegato", "ok"); }
+  else if (msg.type === "denied") { try { localStorage.removeItem(PIN_KEY); } catch (e) { /* */ } show("pinbox"); $("pin-err").textContent = "PIN non corretto"; status("PIN richiesto"); }
+  else if (msg.type === "state") { state = msg.state; render(); }
+}
+
+// ---------------------------------------------------------------- comandi
+$("play").onclick = () => send({ type: "cmd", cmd: state?.playing ? "pause" : "play" });
+$("mute").onclick = () => send({ type: "cmd", cmd: "mute", value: !state?.muted });
+
+function slider(id) {
+  const [, label, , lo, hi, step, , hint] = PARAM[id];
+  const el = document.createElement("div");
+  el.className = "slider"; el.dataset.id = id;
+  el.innerHTML = `<label><span>${label}</span><b></b></label><input type="range" min="${lo}" max="${hi}" step="${step}">${hint ? `<div class="hint">${hint}</div>` : ""}`;
+  const input = el.querySelector("input");
+  input.addEventListener("input", () => {
+    const v = +input.value;                       // il valore di questo istante (lo stato in arrivo non lo cambia)
+    el.dataset.busy = Date.now();
+    paint(el, v);
+    clearTimeout(sendTimers[id]);
+    sendTimers[id] = setTimeout(() => send({ type: "cmd", cmd: "set", id, value: v }), 60);
+  });
+  return el;
+}
+function paint(el, v) {
+  const id = el.dataset.id, [, , , lo, hi] = PARAM[id], input = el.querySelector("input");
+  if (v === undefined) {
+    // mentre il dito è sul cursore (e per un secondo dopo) non lo sovrascrivo con lo stato in arrivo
+    if (document.activeElement === input || Date.now() - (+el.dataset.busy || 0) < 1200) return;
+    v = state?.params?.[id] ?? lo; input.value = v;
+  }
+  el.querySelector("b").textContent = formatParam(id, v);
+  input.style.setProperty("--p", `${((v - lo) / (hi - lo)) * 100}%`);
+}
+for (const p of USER_PARAMS) $("vols").appendChild(slider(p[0]));
+for (const g of TECH_GROUPS) {
+  const h = document.createElement("h3"); h.className = "gothic"; h.textContent = g; $("advbox").appendChild(h);
+  for (const p of PARAMS.filter((q) => q[2] === g)) $("advbox").appendChild(slider(p[0]));
+}
+
+function render() {
+  if (!state) return;
+  const play = $("play");
+  play.innerHTML = state.playing ? `${ICON_PAUSE}<span>Pausa</span>` : `${ICON_PLAY}<span>Riprendi</span>`;
+  play.classList.toggle("paused", !state.playing);
+  $("mute").classList.toggle("on", state.muted);
+  $("mute").textContent = state.muted ? "Audio silenziato" : "Muto";
+  status(state.playing ? "esperienza attiva" : "in pausa", state.playing ? "live" : "ok");
+  $("info").innerHTML = `Camera: <b>${state.camera}</b> · persona: <b>${state.person ? "presente" : "nessuno"}</b><br>` +
+    `Sfera: <b>${state.rings} anelli</b> · intreccio <b>${state.session ? "in corso" : "in attesa"}</b>`;
+  document.querySelectorAll(".slider").forEach((el) => paint(el));
+}
+</script>
+</body>
+</html>

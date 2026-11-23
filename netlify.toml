@@ -1,0 +1,24 @@
+# Pubblicazione della versione web su Netlify.
+# Netlify pubblica solo la cartella "web" e si aggiorna da solo a ogni modifica su GitHub.
+[build]
+  publish = "web"
+  command = ""
+
+# il service worker va sempre ricontrollato, così gli aggiornamenti arrivano subito
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+
+# la camera serve solo alla pagina stessa
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "camera=(self), microphone=()"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"

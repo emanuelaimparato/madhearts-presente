@@ -10,104 +10,161 @@
 <style>
   @font-face { font-family: "League Gothic"; src: url("assets/fonts/LeagueGothic.ttf"); }
   @font-face { font-family: "DM Sans"; src: url("assets/fonts/DMSans.ttf"); }
-  :root { --red: #F5383C; --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; --glass: rgba(14,14,14,.88); }
-  html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; overflow: hidden; }
+  :root { --red: #F5383C; --red-dim: #8a1f22; --pink: #FF8485; --ink: #EDEDED; --muted: #9a9a9a; --line: rgba(255,255,255,.12);
+          --glass: rgba(16,16,16,.78); --card: #111; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased; }
   canvas#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
   body.hide-cursor, body.hide-cursor * { cursor: none !important; }
-  button { font: inherit; color: #fff; cursor: pointer; }
-  .gothic { font-family: "League Gothic", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .04em; }
+  button { font: inherit; color: inherit; cursor: pointer; background: none; border: none; }
+  .gothic { font-family: "League Gothic", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .03em; font-weight: 400; }
+  .btn { font-family: "League Gothic", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 22px; padding: 10px 20px;
+         border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: #fff; transition: background .2s, border-color .2s; }
+  .btn:hover { background: rgba(255,255,255,.12); }
+  .btn.primary { background: var(--red); border-color: var(--red); }
+  .btn.primary:hover { background: #ff4d51; }
+  .btn.danger { color: var(--pink); border-color: var(--red-dim); background: transparent; }
+  .btn.small { font-size: 18px; padding: 7px 14px; }
 
-  /* schermata di avvio */
-  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: #000; z-index: 6; padding: 16px; text-align: center; }
-  #start img { width: min(240px, 50vw); }
-  #start h1 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: clamp(34px, 6vw, 56px); margin: 0; }
+  /* ---------- schermata di avvio */
+  #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; background: #000; z-index: 20; padding: 16px; text-align: center; }
+  #start img { width: min(230px, 50vw); }
+  #start h1 { font-size: clamp(40px, 7vw, 64px); margin: -6px 0 0; }
   #start .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
-  #start button { font-size: 26px; padding: 14px 26px; border-radius: 12px; border: 1px solid var(--line); background: #151515; }
-  #start button.primary { background: var(--red); border-color: var(--red); font-size: 32px; }
-  #start p { color: var(--muted); font-size: 14px; margin: 0; max-width: 560px; line-height: 1.6; }
-  .err { color: #ff8485; }
+  #start .btn { font-size: 28px; padding: 14px 32px; }
+  #start .btn.primary { font-size: 34px; padding: 14px 48px; }
+  #start p { color: var(--muted); font-size: 14px; margin: 0; max-width: 520px; line-height: 1.6; }
+  .err { color: var(--pink); }
 
-  /* barra dei comandi: compare muovendo il mouse o toccando lo schermo */
-  #bar { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 140%); z-index: 4; display: flex; gap: 6px; align-items: center;
-         background: var(--glass); border: 1px solid var(--line); border-radius: 14px; padding: 8px; transition: transform .35s ease, opacity .35s ease; opacity: 0;
-         width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; flex-wrap: wrap; justify-content: center; }
-  #bar.show { transform: translate(-50%, 0); opacity: 1; }
-  body.drawer-open #bar { left: calc((100vw - min(400px, 100vw)) / 2); max-width: calc(100vw - min(400px, 100vw) - 32px); }
-  #bar button { font-family: "League Gothic", sans-serif; text-transform: uppercase; letter-spacing: .04em; font-size: 20px; padding: 8px 14px;
-                border-radius: 10px; border: 1px solid var(--line); background: #1c1c1c; min-width: 44px; min-height: 44px; }
-  #bar button.primary { background: var(--red); border-color: var(--red); min-width: 120px; }
-  #bar button.on { color: var(--red); border-color: var(--red); }
-  #bar .vol { font-variant-numeric: tabular-nums; min-width: 52px; text-align: center; font-size: 15px; }
-  #bar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+  /* ---------- icone in alto a destra */
+  #hud { position: fixed; top: 18px; right: 18px; z-index: 10; display: flex; gap: 10px; opacity: 0; transform: translateY(-8px); transition: opacity .35s, transform .35s; pointer-events: none; }
+  #hud.show { opacity: 1; transform: none; pointer-events: auto; }
+  .icon { width: 52px; height: 52px; border-radius: 50%; background: var(--glass); border: 1px solid var(--line); display: grid; place-items: center; color: #fff;
+          backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: background .2s, transform .2s; }
+  .icon:hover { background: rgba(40,40,40,.9); transform: scale(1.05); }
+  .icon svg { width: 24px; height: 24px; }
 
-  /* pannello impostazioni */
-  #drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(400px, 100vw); z-index: 5; background: var(--glass); border-left: 1px solid var(--line);
-            transform: translateX(105%); transition: transform .35s ease; overflow-y: auto; box-sizing: border-box; padding: 18px 18px 40px; }
-  #drawer.open { transform: none; }
-  #drawer h2 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: 30px; margin: 0; color: #fff; }
-  #drawer h3 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: 22px; margin: 22px 0 6px; color: #fff; }
-  #drawer .head { display: flex; justify-content: space-between; align-items: center; }
-  #drawer .close { background: none; border: none; font-size: 28px; color: var(--muted); }
-  .slider { margin: 10px 0; }
-  .slider label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 2px; }
+  /* ---------- sovrapposizioni (pausa, impostazioni) */
+  .overlay { position: fixed; inset: 0; z-index: 12; display: grid; place-items: center; padding: 16px; background: rgba(0,0,0,.55);
+             backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .sheet { background: var(--glass); border: 1px solid var(--line); border-radius: 20px; width: min(440px, 100%); padding: 26px 26px 22px;
+           box-shadow: 0 30px 80px rgba(0,0,0,.6); transform: translateY(12px) scale(.98); transition: transform .3s; max-height: calc(100vh - 32px); overflow: auto; }
+  .overlay.open .sheet { transform: none; }
+
+  #pause .sheet { text-align: center; }
+  #pause img { width: 74px; }
+  #pause h2 { font-size: 44px; margin: 6px 0 2px; }
+  #pause .sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+  #pause .btn.primary { width: 100%; font-size: 30px; padding: 12px; }
+  .vols { text-align: left; margin: 18px 0 8px; }
+  .toggles { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .link { color: var(--muted); font-size: 14px; margin-top: 16px; text-decoration: underline; text-underline-offset: 3px; }
+  .link:hover { color: #fff; }
+
+  /* cursori */
+  .slider { margin: 12px 0; }
+  .slider label { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; margin-bottom: 4px; }
   .slider label b { color: #fff; font-weight: 500; font-variant-numeric: tabular-nums; }
-  .slider input { width: 100%; accent-color: var(--red); height: 26px; }
-  .hint { color: var(--muted); font-size: 12px; }
-  .status { font-size: 13px; color: var(--muted); line-height: 1.7; margin-top: 8px; }
-  .status b { color: var(--ink); font-weight: 500; }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .actions button { font-family: "League Gothic", sans-serif; text-transform: uppercase; font-size: 19px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: #1c1c1c; }
-  .actions button.danger { color: #ff8485; border-color: #8a1f22; background: transparent; }
+  .slider .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--red) var(--p, 50%), rgba(255,255,255,.18) var(--p, 50%)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; margin-top: -8px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  input[type=range]::-moz-range-track { height: 4px; border-radius: 4px; background: rgba(255,255,255,.18); }
+  input[type=range]::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--red); }
+  input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border: none; border-radius: 50%; background: #fff; }
 
-  /* debug */
-  #debug { position: fixed; left: 16px; top: 16px; z-index: 3; width: min(520px, 45vw); background: rgba(18,18,18,.92); border-radius: 10px; overflow: hidden; display: none; font-size: 13px; }
+  /* interruttore */
+  .switch { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; padding: 8px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.06); }
+  .switch i { width: 38px; height: 22px; border-radius: 11px; background: rgba(255,255,255,.2); position: relative; transition: background .2s; }
+  .switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .switch.on i { background: var(--red); }
+  .switch.on i::after { transform: translateX(16px); }
+
+  /* impostazioni */
+  #settings .sheet { width: min(760px, 100%); height: min(620px, calc(100vh - 32px)); display: grid; grid-template-columns: 190px 1fr; grid-template-rows: auto 1fr; padding: 0; overflow: hidden; }
+  #settings header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 14px 24px; border-bottom: 1px solid var(--line); }
+  #settings header h2 { font-size: 34px; margin: 0; }
+  #settings nav { border-right: 1px solid var(--line); padding: 12px 10px; overflow: auto; }
+  #settings nav button { display: block; width: 100%; text-align: left; padding: 10px 14px; border-radius: 10px; font-size: 15px; color: var(--muted); }
+  #settings nav button:hover { color: #fff; background: rgba(255,255,255,.05); }
+  #settings nav button.on { color: #fff; background: rgba(245,56,60,.16); box-shadow: inset 3px 0 0 var(--red); }
+  #settings .pane { padding: 18px 24px 24px; overflow: auto; }
+  #settings .pane h3 { font-size: 26px; margin: 0 0 4px; }
+  #settings .pane p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 10px; }
+  .close { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); }
+  .close:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .kv { font-size: 14px; line-height: 1.9; }
+  .kv b { color: #fff; font-weight: 500; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .qrbox { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 14px 0; }
+  .qrbox img { width: 170px; height: 170px; background: #fff; padding: 8px; border-radius: 12px; image-rendering: pixelated; }
+  .pin { font-family: "League Gothic", sans-serif; font-size: 56px; letter-spacing: .12em; color: #fff; line-height: 1; }
+  .url { font-size: 12px; color: var(--muted); word-break: break-all; }
+  kbd { font-family: inherit; font-size: 12px; padding: 1px 7px; border-radius: 6px; border: 1px solid var(--line); background: rgba(255,255,255,.06); }
+  @media (max-width: 640px) {
+    #settings .sheet { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; height: calc(100vh - 32px); }
+    #settings nav { border-right: none; border-bottom: 1px solid var(--line); display: flex; overflow-x: auto; padding: 8px; }
+    #settings nav button { white-space: nowrap; width: auto; }
+  }
+
+  /* debug e avvisi */
+  #debug { position: fixed; left: 16px; top: 16px; z-index: 9; width: min(520px, 45vw); background: rgba(18,18,18,.92); border-radius: 12px; overflow: hidden; display: none; font-size: 13px; }
   #debug canvas { width: 100%; display: block; }
   #debug .lines { padding: 8px 10px; line-height: 1.55; font-variant-numeric: tabular-nums; white-space: pre-wrap; }
   #debug .msg { color: var(--muted); }
-  #toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 7; background: var(--glass); border: 1px solid var(--line); border-radius: 10px;
-           padding: 8px 14px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; }
-  #toast.show { opacity: 1; }
+  #toast { position: fixed; top: 22px; left: 50%; transform: translate(-50%, -10px); z-index: 30; background: var(--glass); border: 1px solid var(--line); border-radius: 12px;
+           padding: 9px 16px; font-size: 14px; opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none; backdrop-filter: blur(8px); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
 </style>
 </head>
 <body>
 <canvas id="gl"></canvas>
 
+<!-- avvio -->
 <div id="start">
   <img src="assets/logo.png" alt="MadHearts">
-  <h1>Presente</h1>
+  <h1 class="gothic">Presente</h1>
   <div class="row">
-    <button class="primary gothic" id="go-camera">Avvia</button>
-    <button class="gothic" id="go-demo">Prova senza camera</button>
+    <button class="btn primary" id="go-camera">Avvia</button>
+    <button class="btn" id="go-demo">Prova senza camera</button>
   </div>
-  <p id="hint">Consenti l'accesso alla webcam quando il browser lo chiede: le immagini restano solo su questo computer e non vengono mai salvate.<br>
-  Muovi il mouse (o tocca lo schermo) per i comandi. Tasti: <b>Spazio</b> pausa · <b>F</b> schermo intero · <b>+ / −</b> volume · <b>M</b> muto · <b>D</b> debug.</p>
+  <p id="hint">Consenti l'accesso alla webcam quando il browser lo chiede: le immagini restano su questo dispositivo e non vengono mai salvate.</p>
 </div>
 
-<div id="bar" aria-label="Comandi">
-  <button class="primary" id="b-play">Pausa</button>
-  <span class="sep"></span>
-  <button id="b-voldown" aria-label="Volume giù">−</button>
-  <span class="vol" id="b-vol">80%</span>
-  <button id="b-volup" aria-label="Volume su">+</button>
-  <button id="b-mute">Muto</button>
-  <span class="sep"></span>
-  <button id="b-full">Schermo intero</button>
-  <button id="b-settings">Impostazioni</button>
+<!-- icone in alto a destra -->
+<div id="hud">
+  <button class="icon" id="h-pause" aria-label="Pausa" title="Pausa (Spazio)"></button>
+  <button class="icon" id="h-settings" aria-label="Impostazioni" title="Impostazioni">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
 </div>
 
-<aside id="drawer" aria-label="Impostazioni">
-  <div class="head"><h2>Impostazioni</h2><button class="close" id="d-close" aria-label="Chiudi">×</button></div>
-  <div class="status" id="d-status"></div>
-  <div id="d-params"></div>
-  <h3>Sfera</h3>
-  <div class="status" id="d-sphere"></div>
-  <div class="actions">
-    <button id="d-reset">Valori iniziali</button>
-    <button class="danger" id="d-clear">Azzera la sfera</button>
+<!-- menu di pausa -->
+<div class="overlay" id="pause" role="dialog" aria-label="Pausa">
+  <div class="sheet">
+    <img src="assets/logo.png" alt="">
+    <h2 class="gothic">In pausa</h2>
+    <p class="sub">La camera è spenta.</p>
+    <button class="btn primary" id="p-resume">Riprendi</button>
+    <div class="vols" id="p-vols"></div>
+    <div class="toggles">
+      <button class="switch" id="p-mute"><i></i>Muto</button>
+      <button class="switch" id="p-full"><i></i>Schermo intero</button>
+    </div>
+    <button class="link" id="p-settings">Impostazioni avanzate</button>
   </div>
-  <p class="hint" style="margin-top:14px">Le modifiche si salvano da sole in questo browser e restano ai prossimi avvii.<br>
-  Tasti: Spazio pausa (spegne anche la camera) · F schermo intero · + / − volume · M muto · D debug · C due volte azzera la sfera.</p>
-</aside>
+</div>
+
+<!-- impostazioni -->
+<div class="overlay" id="settings" role="dialog" aria-label="Impostazioni">
+  <div class="sheet">
+    <header><h2 class="gothic">Impostazioni</h2><button class="close" id="s-close" aria-label="Chiudi">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <nav id="s-nav"></nav>
+    <div class="pane" id="s-pane"></div>
+  </div>
+</div>
 
 <div id="debug"><canvas id="dbgcam" width="560" height="315"></canvas><div class="lines" id="dbglines"></div></div>
 <div id="toast"></div>
@@ -122,16 +179,23 @@ import { createContext } from "./js/visuals/gl.js";
 import { VisualEngine } from "./js/visuals/engine.js";
 import { Attract } from "./js/visuals/attract.js";
 import { Audio } from "./js/audio.js";
-import { PARAMS, PARAM, loadSettings, saveSettings, clearSettings, toConfig, clampParam, formatParam } from "./js/settings.js";
+import { PARAMS, PARAM, USER_PARAMS, TECH_GROUPS, loadSettings, saveSettings, clearSettings, toConfig, clampParam, formatParam } from "./js/settings.js";
+import { RemoteHost } from "./js/remote-host.js";
+import qrcode from "./vendor/qrcode/qrcode.mjs";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("gl");
 const SPHERE_KEY = "madhearts.sfera.v1";
+// indirizzo pubblico dell'app (per il codice QR del telefono quando la si usa da "localhost")
+const PUBLIC_URL = "";
 const BASE = deepMerge(DEFAULTS, { app: { max_dpr: 1.5 } });
 let overrides = loadSettings();
 let cfg = deepMerge(BASE, toConfig(overrides));
 const app = { playing: false, debug: false, source: null, cam: null, tracker: null, sim: null, motion: null, state: null, obs: null,
-              messages: [], clearArmed: 0, ringCount: 0, ringsAtStart: 0, fps: 0, t0: 0, camStarting: false };
+              messages: [], clearArmed: 0, ringCount: 0, ringsAtStart: 0, fps: 0, t0: 0, camStarting: false, tab: "Esperienza" };
+
+const ICON_PAUSE = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>`;
+const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>`;
 
 // ---------------------------------------------------------------- grafica e audio
 let gl, engine, attract;
@@ -156,6 +220,14 @@ if (gl) {
   requestAnimationFrame(frame);
 }
 
+// ---------------------------------------------------------------- telecomando dal telefono
+const remote = new RemoteHost({ onCommand: (m) => command(m), onChange: () => app.tab === "Telefono" && renderPane() });
+function remoteBase() {
+  const local = ["localhost", "127.0.0.1"].includes(location.hostname);
+  if (!local) return location.href.replace(/[^/]*([?#].*)?$/, "");
+  return PUBLIC_URL;
+}
+
 // ---------------------------------------------------------------- regolazioni
 function applyConfig() {
   cfg = deepMerge(BASE, toConfig(overrides));
@@ -163,7 +235,7 @@ function applyConfig() {
   app.motion?.configure(cfg);
   audio.configure(cfg);
   attract?.configure(cfg, [canvas.width, canvas.height]);
-  refreshUI();
+  syncControls();
 }
 function value(id) {
   const [sec, key] = id.split(".");
@@ -172,7 +244,8 @@ function value(id) {
   const defaults = { visuals: engine?.p, attract: attract?.p, audio: audio.v, motion: app.motion?.p ?? {} };
   return defaults[sec]?.[key] ?? 0;
 }
-function setParam(id, v, announce = true) {
+function setParam(id, v, announce = false) {
+  if (!PARAM[id]) return;
   overrides[id] = clampParam(id, v);
   saveSettings(overrides);
   applyConfig();
@@ -233,18 +306,24 @@ async function cameraOn() {
     app.camStarting = false;
   }
 }
-function cameraOff() {
-  app.cam?.stop();
-  app.cam = null;
-  app.obs = null;
-}
+function cameraOff() { app.cam?.stop(); app.cam = null; app.obs = null; }
 
 async function setPlaying(on) {
+  if (on === app.playing) return;
   if (on && app.source === "camera" && !(await cameraOn())) return;
   if (!on && app.source === "camera") cameraOff();
   app.playing = on;
-  toast(on ? "esperienza avviata" : "in pausa — camera spenta");
-  refreshUI();
+  $("pause").classList.toggle("open", !on && !$("settings").classList.contains("open"));
+  syncControls();
+  showHud();
+}
+
+// ---------------------------------------------------------------- comandi (schermo, tastiera, telefono)
+function command(m) {
+  if (m.cmd === "play") setPlaying(true);
+  else if (m.cmd === "pause") setPlaying(false);
+  else if (m.cmd === "mute") { audio.setMuted(m.value ?? !audio.muted); syncControls(); }
+  else if (m.cmd === "set") setParam(m.id, m.value);
 }
 
 // ---------------------------------------------------------------- avvio
@@ -263,15 +342,16 @@ async function start(source) {
   app.playing = true;
   $("start").style.display = "none";
   attract.fadeToBlack(false);
-  buildParams();
-  refreshUI();
-  showBar();
+  buildUserSliders();
+  syncControls();
+  showHud();
+  if (remote.wanted) remote.enable();
 }
 $("go-camera").onclick = () => start("camera");
 $("go-demo").onclick = () => start("demo");
 
 // ---------------------------------------------------------------- ciclo
-let last = performance.now(), lastSim = 0, frames = 0, fpsT = last, lastUI = 0;
+let last = performance.now(), lastSim = 0, frames = 0, fpsT = last, lastSlow = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
@@ -300,90 +380,157 @@ function frame(now) {
   if (app.debug) drawDebug();
   frames++;
   if (now - fpsT > 1000) { app.fps = (frames * 1000) / (now - fpsT); frames = 0; fpsT = now; }
-  if (now - lastUI > 500) { lastUI = now; refreshStatus(); }
+  if (now - lastSlow > 500) {
+    lastSlow = now;
+    if (app.tab === "Sistema" && $("settings").classList.contains("open")) renderPane();
+    remote.broadcast(snapshot());
+  }
   requestAnimationFrame(frame);
 }
 
-// ---------------------------------------------------------------- barra dei comandi
-let barTimer = 0;
-function showBar() {
+function snapshot() {
+  const st = app.state;
+  return { playing: app.playing, muted: audio.muted, rings: engine.sphere.rings.length, person: !!(st && st.personPresence > 0.5),
+           session: !!(st && st.sessionActive), camera: app.source === "demo" ? "simulazione" : app.cam ? "accesa" : "spenta",
+           params: Object.fromEntries(PARAMS.map((p) => [p[0], value(p[0])])) };
+}
+
+// ---------------------------------------------------------------- icone in alto a destra
+let hudTimer = 0;
+function showHud() {
   if (!app.source) return;
-  $("bar").classList.add("show");
+  $("hud").classList.add("show");
   document.body.classList.remove("hide-cursor");
-  clearTimeout(barTimer);
-  barTimer = setTimeout(() => {
-    if ($("bar").matches(":hover") || $("drawer").classList.contains("open")) return showBar();
-    $("bar").classList.remove("show");
+  clearTimeout(hudTimer);
+  hudTimer = setTimeout(() => {
+    if ($("hud").matches(":hover") || document.querySelector(".overlay.open")) return showHud();
+    $("hud").classList.remove("show");
     document.body.classList.add("hide-cursor");
   }, 3000);
 }
-addEventListener("mousemove", showBar);
-addEventListener("touchstart", showBar, { passive: true });
+addEventListener("mousemove", showHud);
+addEventListener("touchstart", showHud, { passive: true });
 
-function changeVolume(delta) { setParam("audio.master_volume", value("audio.master_volume") + delta); }
-function toggleMute() { audio.setMuted(!audio.muted); toast(audio.muted ? "audio silenziato" : "audio attivo"); refreshUI(); }
 function toggleFull() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => toast("schermo intero non disponibile")); }
-function toggleDrawer(open = !$("drawer").classList.contains("open")) {
-  $("drawer").classList.toggle("open", open);
-  document.body.classList.toggle("drawer-open", open);
-  refreshStatus();
-  showBar();
+function openSettings(open = true) {
+  $("settings").classList.toggle("open", open);
+  if (open) { $("pause").classList.remove("open"); renderNav(); renderPane(); }
+  else if (!app.playing) $("pause").classList.add("open");
+  showHud();
 }
 
-$("b-play").onclick = () => setPlaying(!app.playing);
-$("b-voldown").onclick = () => changeVolume(-0.05);
-$("b-volup").onclick = () => changeVolume(0.05);
-$("b-mute").onclick = toggleMute;
-$("b-full").onclick = toggleFull;
-$("b-settings").onclick = () => toggleDrawer();
-$("d-close").onclick = () => toggleDrawer(false);
-$("d-reset").onclick = () => { if (confirm("Tornare ai valori iniziali? Le regolazioni salvate verranno dimenticate.")) { overrides = {}; clearSettings(); applyConfig(); toast("valori iniziali"); } };
-$("d-clear").onclick = () => { if (confirm("Azzerare la sfera? Resterà un solo anello.")) clearSphere(); };
-document.addEventListener("fullscreenchange", refreshUI);
+$("h-pause").onclick = () => setPlaying(!app.playing);
+$("h-settings").onclick = () => openSettings(!$("settings").classList.contains("open"));
+$("p-resume").onclick = () => setPlaying(true);
+$("p-mute").onclick = () => command({ cmd: "mute" });
+$("p-full").onclick = toggleFull;
+$("p-settings").onclick = () => openSettings(true);
+$("s-close").onclick = () => openSettings(false);
+$("settings").addEventListener("click", (e) => { if (e.target.id === "settings") openSettings(false); });
+document.addEventListener("fullscreenchange", syncControls);
 
-function refreshUI() {
-  $("b-play").textContent = app.playing ? "Pausa" : "Riprendi";
-  $("b-vol").textContent = Math.round(value("audio.master_volume") * 100) + "%";
-  $("b-mute").classList.toggle("on", audio.muted);
-  $("b-mute").textContent = audio.muted ? "Muto ✓" : "Muto";
-  $("b-full").textContent = document.fullscreenElement ? "Esci da schermo intero" : "Schermo intero";
-  for (const p of PARAMS) {
-    const el = $("p-" + p[0].replace(".", "-"));
-    if (el && document.activeElement !== el.querySelector("input")) {
-      el.querySelector("input").value = value(p[0]);
-      el.querySelector("b").textContent = formatParam(p[0], value(p[0]));
+// ---------------------------------------------------------------- cursori
+function sliderEl(id) {
+  const [, label, , lo, hi, step, , hint] = PARAM[id];
+  const el = document.createElement("div");
+  el.className = "slider"; el.dataset.id = id;
+  el.innerHTML = `<label><span>${label}</span><b></b></label><input type="range" min="${lo}" max="${hi}" step="${step}">${hint ? `<div class="hint">${hint}</div>` : ""}`;
+  const input = el.querySelector("input");
+  input.addEventListener("input", () => { el.dataset.busy = Date.now(); setParam(id, +input.value); paintSlider(el); });
+  paintSlider(el);
+  return el;
+}
+function paintSlider(el) {
+  const id = el.dataset.id, input = el.querySelector("input"), [, , , lo, hi] = PARAM[id];
+  if (document.activeElement !== input && Date.now() - (+el.dataset.busy || 0) > 1200) input.value = value(id);
+  el.querySelector("b").textContent = formatParam(id, +input.value);
+  input.style.setProperty("--p", `${((input.value - lo) / (hi - lo)) * 100}%`);
+}
+function buildUserSliders() {
+  const box = $("p-vols");
+  if (!box.childElementCount) for (const p of USER_PARAMS) box.appendChild(sliderEl(p[0]));
+}
+function syncControls() {
+  $("h-pause").innerHTML = app.playing ? ICON_PAUSE : ICON_PLAY;
+  $("h-pause").title = app.playing ? "Pausa (Spazio)" : "Riprendi (Spazio)";
+  $("p-mute").classList.toggle("on", audio.muted);
+  $("p-full").classList.toggle("on", !!document.fullscreenElement);
+  document.querySelectorAll(".slider").forEach(paintSlider);
+}
+
+// ---------------------------------------------------------------- impostazioni (schede)
+const TABS = [...TECH_GROUPS, "Telefono", "Sistema"];
+function renderNav() {
+  $("s-nav").innerHTML = "";
+  for (const t of TABS) {
+    const b = document.createElement("button");
+    b.textContent = t; b.className = t === app.tab ? "on" : "";
+    b.onclick = () => { app.tab = t; renderNav(); renderPane(); };
+    $("s-nav").appendChild(b);
+  }
+}
+const INTRO = {
+  Esperienza: "Come la luce risponde ai gesti.",
+  Rilevamento: "Quanto la camera è sensibile e quando un filo conta come completato.",
+  Sfera: "La struttura collettiva sullo sfondo.",
+  Audio: "I singoli suoni. Volume, musica ed effetti si regolano anche dal menu di pausa.",
+  Attesa: "Cosa vede il pubblico quando nessuno sta intrecciando.",
+};
+function renderPane() {
+  const pane = $("s-pane"), t = app.tab;
+  if (TECH_GROUPS.includes(t)) {
+    pane.innerHTML = `<h3 class="gothic">${t}</h3><p>${INTRO[t] || ""} Le modifiche si salvano da sole.</p>`;
+    for (const p of PARAMS.filter((q) => q[2] === t)) pane.appendChild(sliderEl(p[0]));
+    return;
+  }
+  if (t === "Telefono") return renderPhone(pane);
+  // Sistema
+  const st = app.state;
+  const cam = app.source === "demo" ? "simulazione" : app.cam ? `accesa · ${app.cam.settings.width}x${app.cam.settings.height} · ${app.cam.fps().toFixed(0)} fps` : "spenta (pausa)";
+  pane.innerHTML = `<h3 class="gothic">Sistema</h3>
+    <div class="kv">Stato: <b>${app.playing ? "esperienza attiva" : "in pausa"}</b><br>Camera: <b>${cam}</b><br>
+    Persona: <b>${st && st.personPresence > 0.5 ? "presente" : "nessuno"}</b> · intreccio <b>${st && st.sessionActive ? "in corso" : "in attesa"}</b><br>
+    Grafica: <b>${app.fps.toFixed(0)} fps</b><br>
+    Audio: <b>${audio.ok ? (audio.muted ? "silenziato" : "attivo") : "non disponibile"}</b> · musica <b>${audio.musicName || "nessuna (web/audio/musica.mp3)"}</b><br>
+    Sfera: <b>${engine.sphere.rings.length} anelli</b> · da questo avvio <b>${engine.sphere.rings.length - app.ringsAtStart}</b></div>
+    <div class="actions">
+      <button class="btn small" id="x-debug">${app.debug ? "Nascondi debug" : "Mostra debug"}</button>
+      <button class="btn small" id="x-reset">Valori iniziali</button>
+      <button class="btn small danger" id="x-clear">Azzera la sfera</button>
+    </div>
+    <p style="margin-top:18px">Tasti: <kbd>Spazio</kbd> pausa · <kbd>F</kbd> schermo intero · <kbd>+</kbd> <kbd>−</kbd> volume · <kbd>M</kbd> muto · <kbd>D</kbd> debug · <kbd>Esc</kbd> chiude</p>`;
+  $("x-debug").onclick = () => { toggleDebug(); renderPane(); };
+  $("x-reset").onclick = () => { if (confirm("Tornare ai valori iniziali? Le regolazioni salvate verranno dimenticate.")) { overrides = {}; clearSettings(); applyConfig(); toast("valori iniziali"); } };
+  $("x-clear").onclick = () => { if (confirm("Azzerare la sfera? Resterà un solo anello.")) { clearSphere(); renderPane(); } };
+}
+
+function renderPhone(pane) {
+  const base = remoteBase(), on = !!remote.peer;
+  let body = `<h3 class="gothic">Telefono</h3>
+    <p>Usa il telefono come telecomando: pausa, volumi e impostazioni. Il collegamento è diretto tra telefono e computer
+    (serve Internet solo per trovarsi; non viene inviata nessuna immagine).</p>
+    <button class="switch ${on ? "on" : ""}" id="x-remote"><i></i>Telecomando ${on ? "attivo" : "spento"}</button>`;
+  if (on) {
+    body += `<div class="kv" style="margin-top:12px">Stato: <b>${remote.status}</b> · telefoni collegati: <b>${remote.conns.size}</b></div>`;
+    if (base) {
+      const url = remote.remoteUrl(base);
+      const qr = qrcode(0, "M"); qr.addData(url); qr.make();
+      body += `<div class="qrbox"><img alt="Codice QR del telecomando" src="${qr.createDataURL(6, 2)}">
+        <div><div style="font-size:13px;color:var(--muted)">PIN</div><div class="pin">${remote.pin}</div>
+        <button class="btn small" id="x-pin" style="margin-top:10px">Nuovo PIN</button></div></div>
+        <p>Inquadra il codice con la fotocamera del telefono, apri il link e inserisci il PIN.</p><div class="url">${url}</div>`;
+    } else {
+      body += `<p style="margin-top:12px">Per collegare il telefono apri l'app dal suo indirizzo online (Netlify) invece che da questo computer: il telefono non può aprire "localhost".</p>`;
     }
   }
-}
-
-function buildParams() {
-  const box = $("d-params");
-  if (box.childElementCount) return;
-  let group = "";
-  for (const [id, label, grp, lo, hi, step, , hint] of PARAMS) {
-    if (grp !== group) { group = grp; const h = document.createElement("h3"); h.textContent = grp; box.appendChild(h); }
-    const el = document.createElement("div");
-    el.className = "slider"; el.id = "p-" + id.replace(".", "-");
-    el.innerHTML = `<label><span>${label}</span><b></b></label><input type="range" min="${lo}" max="${hi}" step="${step}">${hint ? `<div class="hint">${hint}</div>` : ""}`;
-    const input = el.querySelector("input");
-    input.addEventListener("input", () => { el.querySelector("b").textContent = formatParam(id, +input.value); setParam(id, +input.value, false); });
-    box.appendChild(el);
-  }
-}
-
-function refreshStatus() {
-  if (!$("drawer").classList.contains("open")) return;
-  const st = app.state;
-  const cam = app.source === "demo" ? "simulazione" : app.cam ? `accesa ${app.cam.settings.width}x${app.cam.settings.height}, ${app.cam.fps().toFixed(0)} fps` : "spenta (pausa)";
-  $("d-status").innerHTML = `Stato: <b>${app.playing ? "esperienza attiva" : "in pausa"}</b><br>Camera: <b>${cam}</b><br>` +
-    `Persona: <b>${st && st.personPresence > 0.5 ? "presente" : "nessuno"}</b> · grafica <b>${app.fps.toFixed(0)}</b> fps<br>` +
-    `Audio: <b>${audio.ok ? (audio.muted ? "silenziato" : "attivo") : "non disponibile"}</b>${audio.musicName ? " · musica " + audio.musicName : " · nessuna musica (web/audio/musica.mp3)"}`;
-  $("d-sphere").innerHTML = `Anelli: <b>${engine.sphere.rings.length}</b> · da questo avvio: <b>${engine.sphere.rings.length - app.ringsAtStart}</b>` +
-    (st ? `<br>Intreccio <b>${st.sessionActive ? "in corso" : "in attesa"}</b> · braccia a riposo da <b>${st.restTime.toFixed(0)}</b> s` : "");
+  pane.innerHTML = body;
+  $("x-remote").onclick = () => { remote.peer ? remote.disable() : remote.enable(); renderPane(); };
+  $("x-pin") && ($("x-pin").onclick = () => { remote.newPin(); renderPane(); });
 }
 
 // ---------------------------------------------------------------- debug
 const dbg = $("dbgcam").getContext("2d");
+function toggleDebug() { app.debug = !app.debug; $("debug").style.display = app.debug ? "block" : "none"; }
 function drawDebug() {
   const W = 560, H = 315, obs = app.obs, st = app.state, minVis = cfg.tracking.min_visibility;
   dbg.fillStyle = "#111"; dbg.fillRect(0, 0, W, H);
@@ -414,11 +561,11 @@ addEventListener("keydown", (ev) => {
   const k = ev.key.toLowerCase();
   if (k === " ") { ev.preventDefault(); setPlaying(!app.playing); }
   else if (k === "f") toggleFull();
-  else if (k === "+" || k === "=") changeVolume(0.05);
-  else if (k === "-") changeVolume(-0.05);
-  else if (k === "m") toggleMute();
-  else if (k === "d") { app.debug = !app.debug; $("debug").style.display = app.debug ? "block" : "none"; }
-  else if (k === "escape") toggleDrawer(false);
+  else if (k === "+" || k === "=") setParam("audio.master_volume", value("audio.master_volume") + 0.05, true);
+  else if (k === "-") setParam("audio.master_volume", value("audio.master_volume") - 0.05, true);
+  else if (k === "m") { command({ cmd: "mute" }); toast(audio.muted ? "audio silenziato" : "audio attivo"); }
+  else if (k === "d") toggleDebug();
+  else if (k === "escape") openSettings(false);
   else if (k === "c") {
     const t = performance.now();
     if (t - app.clearArmed < 2000) { app.clearArmed = 0; clearSphere(); }
@@ -427,11 +574,9 @@ addEventListener("keydown", (ev) => {
 });
 
 // ---------------------------------------------------------------- funzionamento offline
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
-}
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
 
-window.__mh = { app, get engine() { return engine; }, audio, start, setPlaying, setParam };
+window.__mh = { app, get engine() { return engine; }, audio, remote, start, setPlaying, setParam, command, openSettings };
 </script>
 </body>
 </html>

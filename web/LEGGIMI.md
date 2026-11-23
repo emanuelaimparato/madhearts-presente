@@ -6,9 +6,9 @@ Versione per browser dell'esperienza (in sviluppo, per fasi).
 - **Web 2**: elaborazione del movimento, identica all'app per Mac — `test-movimento.html`
 - **Web 3**: l'esperienza — `index.html`: scia a pennello, sfera ad anelli (salvata nel
   browser), schermata d'attesa con logo e invito, debug (tasto D)
-- **Web 4** (questa): audio, barra dei comandi sullo schermo, pannello Impostazioni,
-  camera spenta in pausa, funzionamento offline
-- Web 5: pubblicazione online e comandi dal telefono
+- **Web 4**: audio, camera spenta in pausa, funzionamento offline
+- **Web 5** (questa): interfaccia da app (icone in alto a destra, menu di pausa,
+  impostazioni a schede), telecomando dal telefono, pubblicazione su Netlify
 
 ## Provare sul Mac
 
@@ -23,14 +23,28 @@ Pagine di prova: `bash web/avvia_web.command test-movimento.html` (o `test-ricon
 
 ## Comandi
 
-Muovendo il mouse (o toccando lo schermo) compare in basso una barra che sparisce da sola:
-**Pausa/Riprendi** (in pausa la camera si spegne), **− volume +**, **Muto**, **Schermo
-intero**, **Impostazioni** (volumi, luminosità, intensità, durata della scia, soglia di
-rilevamento, sfera, invito, logo, azzeramento della sfera). Le regolazioni si salvano da
-sole in questo browser.
+Muovendo il mouse (o toccando lo schermo) compaiono in alto a destra due icone:
+- **pausa** — apre il menu di pausa (la camera si spegne): Riprendi, Volume, Musica,
+  Effetti sonori, Muto, Schermo intero;
+- **ingranaggio** — le impostazioni tecniche, a schede: Esperienza, Rilevamento, Sfera,
+  Audio, Attesa, Telefono, Sistema (stato, debug, valori iniziali, azzeramento della sfera).
 
+Ogni regolazione si salva da sola in questo browser.
 Tasti: **Spazio** pausa · **F** schermo intero · **+ / −** volume · **M** muto · **D** debug ·
-**C** due volte per azzerare la sfera.
+**Esc** chiude le impostazioni · **C** due volte per azzerare la sfera.
+
+## Telecomando dal telefono
+
+Impostazioni → **Telefono** → attiva il telecomando: compaiono un codice QR e un PIN.
+Il telefono inquadra il codice, apre la pagina e inserisce il PIN: da lì comanda pausa,
+volumi e impostazioni. Il collegamento è diretto tra i due dispositivi; serve Internet solo
+per "trovarsi" (servizio gratuito PeerJS). Nessuna immagine viene inviata.
+Il codice QR compare quando l'app è aperta dal suo indirizzo online (Netlify).
+
+## Pubblicazione online (Netlify)
+
+Il file `netlify.toml` (nella cartella principale) dice a Netlify di pubblicare la cartella
+`web`. Una volta collegato il repository, ogni modifica su GitHub aggiorna il sito da sola.
 
 ## Musica e funzionamento offline
 
