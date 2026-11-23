@@ -1,0 +1,1 @@
+logo.png = logo MadHearts in rosso (#F5383C), logo_bianco.png = versione bianca. Sfondo trasparente.

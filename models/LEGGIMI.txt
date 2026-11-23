@@ -1,0 +1,1 @@
+Modelli MediaPipe: scaricali con  python -m tools.download_models

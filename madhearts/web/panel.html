@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MadHearts — Pannello</title>
+<style>
+  @font-face { font-family: "League Gothic"; src: url("/fonts/LeagueGothic.ttf"); }
+  @font-face { font-family: "DM Sans"; src: url("/fonts/DMSans.ttf"); }
+  :root {
+    --red: #F5383C; --red-dim: #8a1f22; --white: #FFFFFF; --black: #000000;
+    --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; --card: #0f0f0f; --pink: #FF8485;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--black); color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; }
+  body { padding: 16px; max-width: 1100px; margin: 0 auto; }
+  h1, h2, .big { font-family: "League Gothic", "Arial Narrow", sans-serif; font-weight: 400; letter-spacing: .02em; text-transform: uppercase; margin: 0; }
+  h1 { font-size: 40px; line-height: 1; color: var(--white); }
+  h1 span { color: var(--red); }
+  h2 { font-size: 24px; color: var(--white); margin-bottom: 12px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .live .dot { background: var(--red); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat .big { font-size: 34px; color: var(--white); line-height: 1; }
+  .stat small { color: var(--muted); font-size: 12px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  button { font: inherit; font-family: "League Gothic", "Arial Narrow", sans-serif; text-transform: uppercase; letter-spacing: .04em;
+           font-size: 22px; padding: 12px 18px; border-radius: 10px; border: 1px solid var(--line); background: #1a1a1a; color: var(--white); cursor: pointer; flex: 1 1 auto; min-height: 52px; }
+  button:hover { border-color: #444; }
+  button.primary { background: var(--red); border-color: var(--red); font-size: 30px; }
+  button.primary.pause { background: var(--white); color: var(--black); border-color: var(--white); }
+  button.on { border-color: var(--red); color: var(--red); }
+  button.danger { background: transparent; color: var(--pink); border-color: var(--red-dim); font-size: 18px; }
+  button:disabled { opacity: .4; cursor: default; }
+  .slider { margin: 12px 0; }
+  .slider label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px; }
+  .slider label b { color: var(--white); font-weight: 500; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--red); height: 28px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .status-line { font-size: 14px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .status-line b { color: var(--ink); font-weight: 500; }
+  ul.log { list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--muted); max-height: 180px; overflow: auto; }
+  ul.log li { padding: 4px 0; border-bottom: 1px solid #1c1c1c; }
+  .banner { display: none; background: var(--red); color: var(--white); padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; }
+  .banner.show { display: block; }
+  .pinbox { position: fixed; inset: 0; background: rgba(0,0,0,.92); display: none; align-items: center; justify-content: center; }
+  .pinbox.show { display: flex; }
+  .pinbox .card { width: min(360px, 100%); text-align: center; }
+  .pinbox input { font: inherit; font-size: 28px; width: 100%; padding: 10px; margin: 12px 0; text-align: center; background: #000; color: #fff; border: 1px solid var(--line); border-radius: 10px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 18px; text-align: center; }
+  @media (max-width: 420px) { h1 { font-size: 32px; } .stat .big { font-size: 28px; } }
+</style>
+</head>
+<body>
+<div class="banner" id="offline">L'app non risponde: controlla che MadHearts sia aperto sul Mac.</div>
+
+<header>
+  <h1>Mad<span>Hearts</span> — Presente</h1>
+  <div class="pill" id="statusPill"><span class="dot"></span><span id="statusText">…</span></div>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <h2>Esperienza</h2>
+    <div class="row">
+      <button class="primary" id="btnPlay" onclick="togglePlay()">Avvia</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnRestart" onclick="confirmCmd('restart','Riavviare? La sfera resta com\'è: si ricollegano camera e audio e si ricarica la configurazione.')">Riavvia</button>
+      <button id="btnDebug" onclick="cmd('debug')">Debug sul proiettore</button>
+    </div>
+    <div class="status-line" id="statusLine"></div>
+  </section>
+
+  <section class="card">
+    <h2>Sfera</h2>
+    <div class="stats">
+      <div class="stat"><div class="big" id="sRings">–</div><small>anelli</small></div>
+      <div class="stat"><div class="big" id="sToday">–</div><small>da questo avvio</small></div>
+      <div class="stat"><div class="big" id="sFps">–</div><small>fps grafica</small></div>
+    </div>
+    <div class="status-line" id="sessionLine"></div>
+  </section>
+
+  <section class="card">
+    <h2>Audio</h2>
+    <div class="row"><button id="btnMute" onclick="cmd('mute')">Silenzia</button></div>
+    <div id="g-audio"></div>
+    <div class="status-line" id="musicLine"></div>
+  </section>
+
+  <section class="card">
+    <h2>Regolazioni</h2>
+    <div id="g-esperienza"></div>
+  </section>
+
+  <section class="card">
+    <h2>Sfera e attesa</h2>
+    <div id="g-sfera"></div>
+    <div id="g-attesa"></div>
+  </section>
+
+  <section class="card">
+    <h2>Impostazioni</h2>
+    <div class="row">
+      <button onclick="cmd('save_settings')">Salva come predefinite</button>
+      <button onclick="confirmCmd('reset_settings','Tornare ai valori di config.toml? Le impostazioni salvate dal pannello verranno dimenticate.')">Ripristina</button>
+    </div>
+    <div class="hint" id="savedHint" style="margin-top:8px"></div>
+    <h2 style="margin-top:18px">Messaggi</h2>
+    <ul class="log" id="log"></ul>
+    <div class="row" style="margin-top:14px">
+      <button class="danger" onclick="confirmCmd('reset_sphere','Azzerare la sfera? Resterà un solo anello. Una copia della sfera attuale viene salvata nella cartella data/.')">Azzera sfera</button>
+      <button class="danger" onclick="confirmCmd('quit','Chiudere l\'app MadHearts? Il proiettore diventerà nero. La sfera viene salvata.')">Chiudi app</button>
+    </div>
+  </section>
+</div>
+
+<footer>Pannello locale: nessun dato lascia questo computer. Nessuna immagine viene salvata.</footer>
+
+<div class="pinbox" id="pinbox">
+  <div class="card">
+    <h2>PIN del pannello</h2>
+    <input id="pinInput" inputmode="numeric" autocomplete="off" placeholder="PIN">
+    <button class="primary" onclick="savePin()">Entra</button>
+  </div>
+</div>
+
+<script>
+let pin = "";
+try { pin = localStorage.getItem("mh_pin") || ""; } catch (e) {}
+let state = null;
+const dragging = new Set();
+const sendTimers = {};
+
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+function headers() { return { "Content-Type": "application/json", "X-Pin": pin }; }
+
+async function cmd(name, extra) {
+  try {
+    const r = await fetch("/api/cmd", { method: "POST", headers: headers(), body: JSON.stringify(Object.assign({ cmd: name }, extra || {})) });
+    if (r.status === 401) showPin();
+  } catch (e) { offline(true); }
+  setTimeout(refresh, 150);
+}
+function confirmCmd(name, text) { if (confirm(text)) cmd(name); }
+function togglePlay() { if (state) cmd(state.playing ? "pause" : "start"); }
+function showPin() { document.getElementById("pinbox").classList.add("show"); }
+function savePin() {
+  pin = document.getElementById("pinInput").value.trim();
+  try { localStorage.setItem("mh_pin", pin); } catch (e) {}
+  document.getElementById("pinbox").classList.remove("show");
+  refresh();
+}
+function offline(on) { document.getElementById("offline").classList.toggle("show", on); }
+
+function fmt(p, v) {
+  if (p.unit === "%") return Math.round(v * 100) + "%";
+  if (p.unit === "s") return v.toFixed(1) + " s";
+  return (Math.abs(v) < 10 ? v.toFixed(2) : v.toFixed(0)) + (p.unit ? " " + p.unit : "");
+}
+
+function buildSliders(params) {
+  for (const p of params) {
+    const box = document.getElementById("g-" + p.group);
+    if (!box) continue;
+    let el = document.getElementById("p-" + p.id);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "slider";
+      el.id = "p-" + p.id;
+      el.innerHTML = `<label><span>${p.label}</span><b></b></label>
+        <input type="range" min="${p.min}" max="${p.max}" step="${p.step}">
+        ${p.hint ? `<div class="hint">${p.hint}</div>` : ""}`;
+      const input = el.querySelector("input");
+      input.addEventListener("pointerdown", () => dragging.add(p.id));
+      input.addEventListener("pointerup", () => setTimeout(() => dragging.delete(p.id), 400));
+      input.addEventListener("input", () => {
+        el.querySelector("b").textContent = fmt(p, parseFloat(input.value));
+        clearTimeout(sendTimers[p.id]);
+        sendTimers[p.id] = setTimeout(() => cmd("set", { id: p.id, value: parseFloat(input.value) }), 80);
+      });
+      box.appendChild(el);
+    }
+    if (!dragging.has(p.id)) {
+      el.querySelector("input").value = p.value;
+      el.querySelector("b").textContent = fmt(p, p.value);
+    }
+  }
+}
+
+function render(s) {
+  state = s;
+  const live = s.playing;
+  const pill = document.getElementById("statusPill");
+  pill.classList.toggle("live", live);
+  document.getElementById("statusText").textContent = live ? "Esperienza attiva" : "In attesa";
+  const play = document.getElementById("btnPlay");
+  play.textContent = live ? "Pausa" : "Avvia";
+  play.classList.toggle("pause", live);
+  document.getElementById("btnDebug").classList.toggle("on", s.debug);
+  document.getElementById("btnMute").classList.toggle("on", s.muted);
+  document.getElementById("btnMute").textContent = s.muted ? "Audio silenziato" : "Silenzia";
+  document.getElementById("statusLine").innerHTML =
+    `Camera: <b>${s.camera}</b><br>Persona: <b>${s.person ? "presente" : "nessuno"}</b> · Riconoscimento: <b>${s.fps_rec.toFixed(0)} fps</b>`;
+  document.getElementById("sRings").textContent = s.rings;
+  document.getElementById("sToday").textContent = s.rings_session;
+  document.getElementById("sFps").textContent = s.fps_gfx.toFixed(0);
+  document.getElementById("sessionLine").innerHTML = s.session_active
+    ? `Intreccio <b>in corso</b> · braccia a riposo da <b>${s.rest.toFixed(0)} s</b> · fuori inquadratura da <b>${s.absent.toFixed(0)} s</b>`
+    : "Nessun intreccio in corso";
+  document.getElementById("musicLine").innerHTML = s.audio_ok
+    ? (s.music ? `Musica: <b>${s.music}</b>` : "Musica: nessun file (vedi cartella audio/)")
+    : "Audio non disponibile su questo computer";
+  document.getElementById("savedHint").textContent = s.settings_saved ? "Ci sono impostazioni salvate dal pannello (in data/impostazioni.json)." : "";
+  buildSliders(s.params);
+  const log = document.getElementById("log");
+  log.innerHTML = s.messages.slice().reverse().map(m => `<li>${esc(m)}</li>`).join("");
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/state", { headers: headers() });
+    if (r.status === 401) { showPin(); return; }
+    offline(false);
+    render(await r.json());
+  } catch (e) { offline(true); }
+}
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

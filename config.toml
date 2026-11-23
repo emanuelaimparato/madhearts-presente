@@ -1,0 +1,331 @@
+# ============================================================
+#  MadHearts — configurazione del prototipo
+#  Modifica questi valori senza toccare il codice.
+#  (Le sezioni marcate [FASE n] verranno usate dalle fasi successive.)
+# ============================================================
+
+[app]
+# Schermo su cui mostrare l'esperienza: "auto" = l'ultimo collegato (il proiettore),
+# oppure un numero (0 = schermo del Mac). Elenco: python -m madhearts.app --list-displays
+display = "auto"
+fullscreen = true
+# Parte con la modalità debug attiva (tasto D per attivarla/disattivarla).
+debug_on_start = false
+# Dove viene conservata la sfera tra un'accensione e l'altra (solo anelli, nessuna immagine).
+sphere_file = "data/sfera.json"
+# true = all'avvio la sfera riparte da un solo anello (il file precedente non viene cancellato).
+sphere_reset_on_start = false
+# true = l'esperienza parte da sola all'avvio, senza premere Avvia (utile se il Mac si riavvia da solo).
+autostart = false
+
+[panel]
+# Pannello di controllo nel browser: l'indirizzo viene mostrato nel Terminale all'avvio
+# (di solito http://localhost:8765).
+enabled = true
+port = 8765
+# true = raggiungibile anche dal telefono sulla stessa rete Wi-Fi. Richiede un PIN.
+lan = false
+pin = ""
+
+[audio]
+enabled = true
+# La vostra traccia (mp3, ogg o wav) nella cartella audio/. Vuoto = nessuna musica.
+music_file = "audio/musica.mp3"
+# Volumi (0..1). Si regolano anche dal pannello.
+master_volume = 0.8
+music_volume = 0.5
+# Tappeto sonoro generato: ambient_volume è il volume pieno (quando c'è qualcuno),
+# ambient_idle la frazione usata quando l'esperienza è vuota.
+ambient_volume = 0.5
+ambient_idle = 0.35
+# Fruscio di pennello che segue la scia.
+trail_volume = 0.6
+# Rintocco quando un nuovo anello entra nella sfera.
+chime_volume = 0.6
+
+[attract]
+# Logo piccolo in un angolo. Disponibili: "assets/logo.png" (rosso MadHearts) e
+# "assets/logo_bianco.png" (bianco). Si può sostituire con qualsiasi PNG a sfondo trasparente.
+logo_file = "assets/logo.png"
+# "top-left", "top-right", "bottom-left", "bottom-right"
+logo_corner = "bottom-right"
+# Altezza (frazione dello schermo), opacità (0..1) e distanza dal bordo.
+logo_height = 0.06
+logo_opacity = 0.6
+logo_margin = 0.03
+# Invito al pubblico: compare quando l'esperienza è in attesa o vuota da invite_delay secondi.
+invite_text = "AVVICINATI E INTRECCIA IL TUO FILO"
+invite_subtext = "ogni gesto diventa parte della sfera"
+invite_font = "assets/fonts/LeagueGothic.ttf"
+invite_subfont = "assets/fonts/DMSans.ttf"
+# Grandezza del testo (frazione dell'altezza) e posizione verticale (0 = in alto, 1 = in basso).
+invite_size = 0.045
+invite_y = 0.92
+invite_color = "#FFFFFF"
+invite_opacity = 0.75
+invite_delay = 6.0
+invite_fade = 1.5
+
+[camera]
+# Indice della videocamera. 0 = di solito la FaceTime HD integrata.
+# ATTENZIONE: se un iPhone è vicino, macOS può esporre la "Fotocamera Continuity"
+# con un indice diverso. Usa `python -m tools.camera_test --list` per verificare.
+index = 0
+width = 1280
+height = 720
+fps = 30
+# Specchia l'immagine: il visitatore vede i propri gesti come in uno specchio.
+mirror = true
+# "avfoundation" su macOS, "any" per lasciar scegliere a OpenCV.
+backend = "avfoundation"
+# Dopo quante letture fallite consecutive la camera viene riaperta.
+reconnect_after_failures = 30
+
+[debug]
+# Soglia di luminosità media (0-255) sotto la quale il test segnala luce scarsa.
+low_light_threshold = 60
+
+[tracking]
+# Modello del corpo: "lite" (più veloce), "full" (equilibrato), "heavy" (più preciso, più lento).
+pose_model = "full"
+# Riconoscimento dettagliato delle mani (21 punti per mano). Spento: per questa
+# esperienza conta il braccio che porta il filo, e le mani aggiungono ~17 ms di latenza.
+# Il corpo resta la base:
+# le mani sono un dettaglio aggiuntivo, spesso perso quando le dita sono tra i fili.
+hands_enabled = false
+# Esegui il riconoscimento mani ogni N frame (1 = sempre; 2 = dimezza il carico).
+hands_every_n_frames = 1
+# "cpu" oppure "gpu" (se la GPU non è supportata si torna automaticamente alla CPU).
+delegate = "cpu"
+# Sensibilità: valori più bassi = rileva anche con poca luce, ma più falsi positivi.
+min_detection_confidence = 0.5
+min_presence_confidence = 0.5
+min_tracking_confidence = 0.5
+# Visibilità minima (0-1) perché un punto sia considerato affidabile.
+min_visibility = 0.3
+# Una mano viene associata a un polso se la distanza è minore di questo valore
+# (in multipli della larghezza delle spalle).
+hand_match_max_distance = 0.6
+# Larghezza dell'immagine usata per il riconoscimento (0 = risoluzione piena).
+inference_width = 0
+
+[preprocess]
+# Miglioramento del contrasto per la luce scarsa (CLAHE). Solo per il riconoscimento,
+# non modifica nulla di ciò che viene mostrato.
+clahe_enabled = true
+clahe_clip_limit = 2.0
+clahe_tile_grid = 8
+
+[motion]
+# Le distanze sono in "larghezze di spalle" (sw): non dipendono dalla distanza dalla camera.
+# Tutti i valori si possono cambiare mentre motion_test è aperto: salva il file e l'effetto è immediato.
+
+# --- Fluidità (filtro One Euro)
+# Più basso = più liscio quando il braccio è quasi fermo (ma un po' più lento a reagire).
+smoothing_min_cutoff = 1.2
+# Più alto = meno ritardo nei movimenti veloci (ma più tremolio).
+smoothing_beta = 0.35
+smoothing_d_cutoff = 1.0
+
+# --- Attendibilità
+# Velocità oltre la quale uno spostamento è considerato un errore di rilevamento (sw/s).
+max_plausible_speed = 14.0
+# Dopo quanti scarti consecutivi si accetta comunque la nuova posizione.
+reacquire_after_rejections = 4
+# Se il polso sparisce: per quanti secondi prosegue per inerzia.
+hold_time = 0.35
+# Quanto rapidamente si spegne l'inerzia (s).
+hold_inertia = 0.15
+# Apparizione e dissolvenza della presenza di un braccio (s).
+fade_in = 0.25
+fade_out = 0.9
+# Se destra e sinistra si scambiano di colpo di più di questa distanza (sw), vengono corrette.
+swap_min_jump = 0.6
+
+# --- Risposta al gesto
+# Velocità (sw/s) che produce la risposta massima.
+speed_for_full_response = 5.0
+# Curva di risposta: <1 rende più evidenti i gesti lenti, >1 enfatizza quelli veloci.
+response_curve = 0.8
+# Sotto questa velocità (sw/s) il braccio è considerato fermo.
+movement_threshold = 0.5
+# Lunghezza minima (sw) perché un gesto conti come "tratto" (portare il filo da un anello all'altro).
+stroke_min_length = 0.6
+# Finestra (s) e ampiezza (sw) per il calcolo dell'ampiezza del gesto.
+amplitude_window = 1.2
+amplitude_full = 2.0
+# Cambio di direzione: angolo minimo (gradi) entro la finestra (s).
+turn_min_angle = 70.0
+turn_window = 0.18
+# Quanto dura l'energia di un gesto dopo che ci si ferma (s).
+activity_decay = 1.5
+# Distanza tra i polsi (sw) sotto la quale le mani "si incontrano".
+meet_distance = 0.45
+# Margine (sw) per considerare le braccia incrociate (evita sfarfallii).
+cross_margin = 0.08
+
+# --- Fine dell'intreccio (quando nasce un nuovo anello della sfera)
+# La sessione di una persona inizia con il primo gesto di intreccio e finisce quando:
+#  - esce dall'inquadratura per almeno session_exit_seconds, oppure
+#  - tiene le braccia lungo il corpo per almeno session_rest_seconds.
+session_exit_seconds = 4.0
+session_rest_seconds = 5.0
+# Braccia "lungo il corpo": polso più in basso della spalla di almeno questo valore (sw, negativo)
+# e fermo. Anche un polso fuori dal bordo inferiore (con il corpo visibile) conta come riposo.
+rest_elevation = -1.0
+# Perché nasca un anello servono almeno questi gesti e questa lunghezza totale (sw):
+# chi passa davanti senza intrecciare non aggiunge anelli.
+session_min_strokes = 2
+session_min_length = 2.0
+# Lunghezza totale (sw) che dà a un anello la luminosità massima.
+session_full_length = 40.0
+
+[visuals]
+# ================= LIVELLI =================
+# Primo piano: la scia del gesto (bianca, svanisce in pochi secondi).
+# Sfondo: la sfera ad anelli (rosso MadHearts e bianco), che cresce di un anello per ogni filo intrecciato.
+# Le onde sono disattivate in questa versione; si possono riaccendere con waves_enabled = true.
+waves_enabled = false
+sphere_enabled = true
+
+# ---------------- Colore
+# Palette attiva. "madhearts" = solo il rosso del brand (#F5383C).
+# Altre: "madhearts_rosa" (rosso + rosa salmone del brand), "presente", "oceano", "brace", "aurora",
+# oppure una tua in [visuals.palettes].
+palette = "madhearts"
+background = "#000000"
+# Posizione nel gradiente del colore di ciascun braccio (0..1).
+hue_left = 0.05
+hue_right = 0.55
+# Quanto il colore cambia con l'altezza del polso, e la sua lenta deriva nel tempo.
+hue_by_height = 0.08
+hue_drift = 0.01
+
+# ---------------- Risposta generale
+# Moltiplica la reazione a tutti i gesti (1 = normale).
+response_intensity = 1.0
+# Velocità di dissolvenza globale: >1 tutto svanisce prima, <1 resta più a lungo.
+fade_speed = 1.0
+# Ingrandimento della zona del corpo sullo schermo (>1 la composizione occupa più spazio).
+input_zoom = 1.3
+input_center_x = 0.5
+input_center_y = 0.5
+
+# ---------------- Onde (anelli di luce attorno alle mani) — usate solo se waves_enabled = true
+wave_intensity = 1.0
+wave_brightness = 1.1
+# Velocità di propagazione (max 0.49).
+wave_speed = 0.45
+# Più vicino a 1 = le onde viaggiano più lontano prima di spegnersi.
+wave_damping = 0.992
+# Frequenza delle increspature: più alta = anelli più fitti.
+wave_frequency = 5.0
+# Sottigliezza delle linee d'onda (più alto = più sottili).
+ring_sharpness = 8.0
+wave_resolution = 360
+wave_steps = 3
+# Per quanto tempo (s) e quanto lontano le onde portano il colore del braccio.
+color_duration = 1.8
+color_radius = 0.09
+# Quanto le onde trascinano e deformano le scie luminose.
+flow_strength = 1.0
+# Intensità delle onde generate da eventi (svolte, incroci, incontri).
+event_wave_intensity = 0.5
+
+# ---------------- Scia del gesto (primo piano)
+# Colore della scia: bianco = il gesto presente. Lascia "" per usare la palette.
+trail_color = "#FFFFFF"
+# Numero di pennellate per braccio.
+filaments_per_arm = 1
+# In quanti secondi la scia si dissolve.
+filament_length = 3.0
+filament_width = 0.035
+filament_brightness = 0.8
+# Ondulazione dei filamenti: ampiezza, lunghezza d'onda, velocità; apertura del fascio.
+filament_wave_amplitude = 0.02
+filament_wavelength = 0.35
+filament_wave_speed = 0.15
+filament_spread = 0.03
+# Quanto in fretta la coda del filamento si schiarisce fino a sparire (più alto = coda più leggera).
+filament_tail_fade = 1.6
+# Durata delle tracce luminose dopo il passaggio (s).
+trail_duration = 0.1
+
+# ---------------- Pennello e calma
+# Texture a pennello sui filamenti: 0 = linea di luce liscia, 1 = pennellata piena.
+brush_amount = 1.0
+# Grana della pennellata lungo il gesto (più alto = setole più fitte).
+brush_scale = 2.5
+# Quanto il pennello si "secca" verso la coda (0 = mai, 1 = molto).
+brush_dryness = 0.8
+# Calma: tempo (s) con cui la luce segue i cambi di velocità. Più alto = più morbido e rilassato.
+calm = 0.35
+# Raggio attorno alla mano in cui le onde restano spente (niente alone che pulsa).
+calm_zone = 0.07
+# Morbidezza delle onde nel tempo (s): più alto = anelli più vellutati, meno pulsanti.
+wave_softness = 0.12
+
+# ---------------- Fili sospesi (versione precedente: sostituiti dalla sfera)
+threads_enabled = false
+# Quanto a lungo resta un filo (s) e quanti al massimo.
+thread_lifetime = 60.0
+max_threads = 80
+thread_brightness = 0.4
+thread_width = 0.007
+thread_sway = 0.012
+# Nodi di luce quando le braccia si incrociano.
+knot_intensity = 0.0
+
+# ---------------- Sfera ad anelli (sfondo)
+# Posizione del centro (0..1) e raggio (frazione dell'altezza dello schermo).
+sphere_x = 0.5
+sphere_y = 0.5
+sphere_radius = 0.34
+# Rotazione lenta (radianti al secondo: 0.06 = un giro in circa 100 s) e inclinazione (gradi).
+sphere_rotation_speed = 0.06
+sphere_tilt = 18.0
+# Prospettiva (più basso = più profondità) e quanto la parte posteriore è più tenue (0..1).
+sphere_perspective = 3.5
+sphere_depth = 0.7
+sphere_white = "#FFFFFF"
+# Anelli presenti all'avvio e numero massimo (oltre, i più vecchi si dissolvono piano).
+initial_rings = 1
+max_rings = 48
+# Un nuovo anello nasce quando una persona ha finito di intrecciare il filo
+# (vedi [motion] session_*). Intervallo minimo tra due anelli, per sicurezza (s).
+ring_cooldown = 1.0
+# Il nuovo anello nasce bianco e in questi secondi prende la sua tonalità.
+ring_white_time = 6.0
+# Tonalità degli anelli: ogni anello ne riceve una, dal rosso profondo al rosa quasi bianco
+# (mai bianco pieno, per non confondersi con la scia). L'ordine conta: dal più scuro al più chiaro.
+ring_shades = ["#9E1C22", "#C9262C", "#F5383C", "#FF5C5F", "#FF8485", "#FFB0AE", "#FFD6D2"]
+# Dove si concentrano le tonalità (0 = più scuro, 1 = più chiaro; 0.4 ≈ rosso MadHearts)
+# e quanto variano (più alto = più varietà, più anelli molto scuri o molto chiari).
+ring_shade_center = 0.4
+ring_shade_spread = 0.22
+# Ogni N anelli, uno resta bianco puro per sempre (0 = mai).
+ring_white_every = 0
+# Tempo di crescita di un nuovo anello e di dissolvenza dei più vecchi (s).
+ring_grow_time = 2.0
+ring_fade_out = 6.0
+ring_width = 0.006
+ring_brightness = 0.8
+# Texture a pennello secco sugli anelli (0 = linea piena).
+ring_dryness = 0.25
+# Quanto la scia in primo piano "copre" la sfera dietro (0..1).
+trail_occlusion = 0.7
+
+# ---------------- Luce
+bloom_intensity = 0.35
+bloom_threshold = 0.45
+exposure = 1.5
+vignette = 0.35
+# Come si sommano le luci sovrapposte: "max" = resta la più luminosa (niente macchie
+# abbaglianti dove le linee si incrociano); "add" = si sommano (più brillante).
+light_blend = "max"
+# Scala della risoluzione interna (1 = piena; 0.75 alleggerisce la GPU).
+render_scale = 1.0
+
+# Palette personalizzate: aggiungine una qui e scegli palette = "<nome>".
+[visuals.palettes]
+mio_rosso = ["#F5383C"]

@@ -1,0 +1,17 @@
+# MadHearts — dipendenze
+# Python 3.11 o 3.12 consigliato (serve tomllib, incluso da Python 3.11).
+#
+# FASE 1: solo OpenCV + NumPy.
+# Usiamo opencv-contrib-python (NON opencv-python) perché MediaPipe, nella Fase 2,
+# dipende proprio da opencv-contrib-python: avere entrambi installati crea un
+# conflitto sul modulo cv2. Versione non bloccata: pip sceglie la wheel compatibile
+# con la tua versione di macOS (le 5.x richiedono macOS 15, su macOS 13/14 pip
+# installerà automaticamente una 4.x).
+opencv-contrib-python>=4.10
+numpy>=1.26
+
+# FASE 2:
+mediapipe==1.2.3
+# FASE 4:
+pygame-ce>=2.5
+moderngl>=5.12

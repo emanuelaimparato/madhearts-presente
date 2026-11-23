@@ -1,0 +1,1 @@
+Metti qui la vostra traccia musicale come musica.mp3 (oppure .ogg / .wav: indica il nome in config.toml, sezione [audio]).
