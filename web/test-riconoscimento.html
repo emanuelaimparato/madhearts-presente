@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MadHearts web — test riconoscimento</title>
+<style>
+  @font-face { font-family: "League Gothic"; src: url("assets/fonts/LeagueGothic.ttf"); }
+  @font-face { font-family: "DM Sans"; src: url("assets/fonts/DMSans.ttf"); }
+  :root { --red: #F5383C; --ink: #EDEDED; --muted: #9a9a9a; --line: #2a2a2a; --card: #0f0f0f; }
+  html, body { margin: 0; background: #000; color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; }
+  body { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-family: "League Gothic", sans-serif; font-weight: 400; text-transform: uppercase; font-size: 36px; margin: 0 0 12px; }
+  h1 span { color: var(--red); }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  button, select { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: #1a1a1a; color: #fff; }
+  button.primary { background: var(--red); border-color: var(--red); }
+  .stage { position: relative; background: #111; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .info { font-variant-numeric: tabular-nums; line-height: 1.7; margin-top: 10px; }
+  .info b { color: #fff; font-weight: 500; }
+  pre { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; white-space: pre-wrap; }
+  .err { color: #ff8485; }
+  .muted { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Mad<span>Hearts</span> web — test riconoscimento</h1>
+<div class="bar">
+  <button class="primary" id="start">Avvia camera</button>
+  <select id="cam" title="Webcam"></select>
+  <select id="model" title="Modello"><option value="full">modello full</option><option value="lite">modello lite</option></select>
+  <button id="mirror">Specchio: sì</button>
+  <button id="summary">Riepilogo</button>
+  <button id="reset">Azzera statistiche</button>
+</div>
+<div class="stage"><canvas id="view" width="1280" height="720"></canvas></div>
+<div class="info" id="info">Premi <b>Avvia camera</b> e consenti l'accesso alla webcam. Nessuna immagine viene salvata.</div>
+<pre id="out" hidden></pre>
+<p class="muted">Prova suggerita: in piedi alla distanza dell'installazione, braccia lungo i fianchi e poi alzate, gesti da intreccio con le mani che si incrociano, movimenti veloci; poi esci dall'inquadratura e rientra. Alla fine premi Riepilogo e mandamelo.</p>
+
+<script type="module">
+import { DEFAULTS, deepMerge } from "./js/config.js";
+import { Camera, listCameras } from "./js/camera.js";
+import { Tracker, SIDES } from "./js/tracking.js";
+
+const $ = (id) => document.getElementById(id);
+const view = $("view"), g = view.getContext("2d");
+const COLORS = { left: "#ff50dc", right: "#3cdcff" };
+let cfg = deepMerge(DEFAULTS, {});
+let cam = null, tracker = null, running = false;
+let stats, prev = null;
+const recFrames = [];
+
+function resetStats() {
+  stats = { n: 0, present: 0, wrist: { left: 0, right: 0 }, jumps: { left: 0, right: 0 }, ms: [], t0: performance.now() };
+}
+resetStats();
+
+async function fillCameras() {
+  const cams = await listCameras();
+  $("cam").innerHTML = cams.map((c, i) => `<option value="${c.deviceId}">${c.label || "webcam " + (i + 1)}</option>`).join("");
+  if (cfg.camera.deviceId) $("cam").value = cfg.camera.deviceId;
+}
+
+async function start() {
+  stop();
+  $("info").textContent = "Avvio della camera e del modello…";
+  try {
+    cfg = deepMerge(cfg, { camera: { deviceId: $("cam").value || "" }, tracking: { pose_model: $("model").value } });
+    cam = await new Camera(cfg.camera).start();
+    await fillCameras();
+    tracker = await Tracker.create(cfg, ".");
+  } catch (e) {
+    $("info").innerHTML = `<span class="err">${e.message}</span>`;
+    return;
+  }
+  view.width = cam.settings.width; view.height = cam.settings.height;
+  resetStats(); prev = null; running = true;
+  requestAnimationFrame(loop);
+}
+
+function stop() {
+  running = false;
+  cam?.stop(); cam = null;
+  tracker?.close(); tracker = null;
+}
+
+function loop() {
+  if (!running) return;
+  if (cam.newFrame()) {
+    const obs = tracker.process(cam.video, cam.frameId);
+    const now = performance.now();
+    recFrames.push(now); while (recFrames.length && now - recFrames[0] > 2000) recFrames.shift();
+    addStats(obs);
+    draw(obs);
+  }
+  requestAnimationFrame(loop);
+}
+
+function addStats(obs) {
+  const minVis = cfg.tracking.min_visibility;
+  stats.n++; stats.ms.push(obs.poseMs);
+  if (obs.present) stats.present++;
+  for (const s of SIDES) {
+    const ok = obs.present && obs.arms[s].wrist.visibility >= minVis;
+    if (ok) stats.wrist[s]++;
+    if (ok && prev?.present && prev.arms[s].wrist.visibility >= minVis && obs.shoulderWidth > 0) {
+      const a = obs.arms[s].wrist, b = prev.arms[s].wrist;
+      const d = Math.hypot((a.x - b.x) * obs.aspect, a.y - b.y) / obs.aspect / obs.shoulderWidth;
+      if (d > 0.35) stats.jumps[s]++;
+    }
+  }
+  prev = obs;
+}
+
+function draw(obs) {
+  const W = view.width, H = view.height, minVis = cfg.tracking.min_visibility;
+  g.save();
+  if (cfg.camera.mirror) { g.translate(W, 0); g.scale(-1, 1); }
+  g.drawImage(cam.video, 0, 0, W, H);
+  g.restore();
+  g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(0, 0, W, H);
+  if (obs.present) {
+    for (const s of SIDES) {
+      const arm = obs.arms[s], chain = [arm.shoulder, arm.elbow, arm.wrist];
+      g.strokeStyle = g.fillStyle = COLORS[s]; g.lineWidth = 4;
+      for (let i = 0; i < 2; i++) {
+        if (Math.min(chain[i].visibility, chain[i + 1].visibility) >= minVis) {
+          g.beginPath(); g.moveTo(chain[i].x * W, chain[i].y * H); g.lineTo(chain[i + 1].x * W, chain[i + 1].y * H); g.stroke();
+        }
+      }
+      for (const p of chain) {
+        g.beginPath(); g.arc(p.x * W, p.y * H, 9, 0, Math.PI * 2);
+        p.visibility >= minVis ? g.fill() : g.stroke();
+      }
+      g.font = "bold 22px DM Sans, sans-serif";
+      g.fillText(s === "left" ? "SX" : "DX", arm.wrist.x * W + 12, arm.wrist.y * H - 12);
+    }
+  }
+  const rec = recFrames.length > 1 ? ((recFrames.length - 1) * 1000) / (recFrames.at(-1) - recFrames[0]) : 0;
+  const v = (s) => (obs.present ? obs.arms[s].wrist.visibility.toFixed(2) : "–");
+  $("info").innerHTML =
+    `Camera: <b>${cam.settings.label}</b> · <b>${cam.settings.width}x${cam.settings.height}</b> · <b>${cam.fps().toFixed(1)}</b> fps<br>` +
+    `Riconoscimento: <b>${rec.toFixed(1)}</b> fps · <b>${obs.poseMs.toFixed(1)}</b> ms per fotogramma · elaborazione su <b>${tracker.delegate}</b><br>` +
+    `Persona: <b>${obs.present ? "sì" : "no"}</b> · polso SX <b>${v("left")}</b> · polso DX <b>${v("right")}</b>`;
+}
+
+function summary() {
+  const pct = (x) => stats.n ? ((100 * x) / stats.n).toFixed(1) + "%" : "n/d";
+  const ms = [...stats.ms].sort((a, b) => a - b);
+  const mean = ms.length ? ms.reduce((a, b) => a + b, 0) / ms.length : 0;
+  const p95 = ms.length ? ms[Math.floor(ms.length * 0.95)] : 0;
+  const ua = navigator.userAgent.match(/(Chrome|Firefox|Version)\/[\d.]+/g)?.join(" ") || navigator.userAgent;
+  $("out").hidden = false;
+  $("out").textContent = [
+    "===== RIEPILOGO WEB 1 (copialo nella risposta) =====",
+    `browser            ${ua}${/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? " (Safari)" : ""}`,
+    `camera             ${cam ? cam.settings.width + "x" + cam.settings.height + " @ " + cam.fps().toFixed(1) + " fps" : "n/d"}`,
+    `modello            ${cfg.tracking.pose_model} su ${tracker?.delegate ?? "n/d"}`,
+    `fotogrammi         ${stats.n}  (${((performance.now() - stats.t0) / 1000).toFixed(0)} s)`,
+    `persona rilevata   ${pct(stats.present)}`,
+    `polso sx / dx      ${pct(stats.wrist.left)} / ${pct(stats.wrist.right)}`,
+    `salti polso sx/dx  ${stats.jumps.left} / ${stats.jumps.right}`,
+    `ms per fotogramma  media ${mean.toFixed(1)}  p95 ${p95.toFixed(1)}`,
+  ].join("\n");
+}
+
+$("start").onclick = start;
+$("mirror").onclick = () => { cfg.camera.mirror = !cfg.camera.mirror; tracker?.configure(cfg); $("mirror").textContent = "Specchio: " + (cfg.camera.mirror ? "sì" : "no"); };
+$("summary").onclick = summary;
+$("reset").onclick = () => { resetStats(); prev = null; $("out").hidden = true; };
+$("cam").onchange = () => running && start();
+$("model").onchange = () => running && start();
+window.__mh = { get stats() { return stats; }, get tracker() { return tracker; }, start, summary };
+fillCameras().catch(() => {});
+</script>
+</body>
+</html>
