@@ -186,8 +186,6 @@ import qrcode from "./vendor/qrcode/qrcode.mjs";
 const $ = (id) => document.getElementById(id);
 const canvas = $("gl");
 const SPHERE_KEY = "madhearts.sfera.v1";
-// indirizzo pubblico dell'app (per il codice QR del telefono quando la si usa da "localhost")
-const PUBLIC_URL = "https://madhearts-presente.netlify.app/";
 const BASE = deepMerge(DEFAULTS, { app: { max_dpr: 1.5 } });
 let overrides = loadSettings();
 let cfg = deepMerge(BASE, toConfig(overrides));
@@ -222,11 +220,6 @@ if (gl) {
 
 // ---------------------------------------------------------------- telecomando dal telefono
 const remote = new RemoteHost({ onCommand: (m) => command(m), onChange: () => app.tab === "Telefono" && renderPane() });
-function remoteBase() {
-  const local = ["localhost", "127.0.0.1"].includes(location.hostname);
-  if (!local) return location.href.replace(/[^/]*([?#].*)?$/, "");
-  return PUBLIC_URL;
-}
 
 // ---------------------------------------------------------------- regolazioni
 function applyConfig() {
@@ -483,7 +476,7 @@ function renderPane() {
     for (const p of PARAMS.filter((q) => q[2] === t)) pane.appendChild(sliderEl(p[0]));
     return;
   }
-  if (t === "Telefono") return renderPhone(pane);
+  if (t === "Telefono") { if (remote.available === null) remote.check().then(renderPane); return renderPhone(pane); }
   // Sistema
   const st = app.state;
   const cam = app.source === "demo" ? "simulazione" : app.cam ? `accesa · ${app.cam.settings.width}x${app.cam.settings.height} · ${app.cam.fps().toFixed(0)} fps` : "spenta (pausa)";
@@ -505,26 +498,34 @@ function renderPane() {
 }
 
 function renderPhone(pane) {
-  const base = remoteBase(), on = !!remote.peer;
+  const on = remote.active;
   let body = `<h3 class="gothic">Telefono</h3>
-    <p>Usa il telefono come telecomando: pausa, volumi e impostazioni. Il collegamento è diretto tra telefono e computer
-    (serve Internet solo per trovarsi; non viene inviata nessuna immagine).</p>
-    <button class="switch ${on ? "on" : ""}" id="x-remote"><i></i>Telecomando ${on ? "attivo" : "spento"}</button>`;
+    <p>Usa il telefono come telecomando: pausa, volumi e impostazioni. Il tramite è questo Mac: nessun servizio
+    esterno e nessuna immagine inviata. Telefono e Mac devono essere sulla stessa rete Wi-Fi (o sull'hotspot del telefono).</p>`;
+  if (remote.available === false) {
+    body += `<p style="margin-top:12px"><b style="color:#fff">Non disponibile da qui.</b> Il telecomando funziona quando l'esperienza
+      è aperta da questo Mac con <kbd>avvia_web.command</kbd> (nel Terminale: <kbd>bash web/avvia_web.command</kbd>).</p>`;
+    pane.innerHTML = body;
+    return;
+  }
+  body += `<button class="switch ${on ? "on" : ""}" id="x-remote"><i></i>Telecomando ${on ? "attivo" : "spento"}</button>`;
   if (on) {
-    body += `<div class="kv" style="margin-top:12px">Stato: <b>${remote.status}</b> · telefoni collegati: <b>${remote.conns.size}</b></div>`;
-    if (base) {
-      const url = remote.remoteUrl(base);
+    body += `<div class="kv" style="margin-top:12px">Stato: <b>${remote.status}</b> · telefoni collegati: <b>${remote.phones}</b></div>`;
+    const url = remote.remoteUrl();
+    if (url) {
       const qr = qrcode(0, "M"); qr.addData(url); qr.make();
       body += `<div class="qrbox"><img alt="Codice QR del telecomando" src="${qr.createDataURL(6, 2)}">
         <div><div style="font-size:13px;color:var(--muted)">PIN</div><div class="pin">${remote.pin}</div>
         <button class="btn small" id="x-pin" style="margin-top:10px">Nuovo PIN</button></div></div>
-        <p>Inquadra il codice con la fotocamera del telefono, apri il link e inserisci il PIN.</p><div class="url">${url}</div>`;
+        <p>Inquadra il codice con la fotocamera del telefono, apri il link e inserisci il PIN.
+        Se non si apre: controlla che il telefono sia sulla stessa rete del Mac e che macOS consenta le connessioni in entrata a Python.</p>
+        <div class="url">${url}</div>`;
     } else {
-      body += `<p style="margin-top:12px">Per collegare il telefono apri l'app dal suo indirizzo online (Netlify) invece che da questo computer: il telefono non può aprire "localhost".</p>`;
+      body += `<p style="margin-top:12px">Il Mac non è collegato a nessuna rete: collegalo al Wi-Fi o all'hotspot del telefono.</p>`;
     }
   }
   pane.innerHTML = body;
-  $("x-remote").onclick = () => { remote.peer ? remote.disable() : remote.enable(); renderPane(); };
+  $("x-remote").onclick = () => { remote.active ? remote.disable() : remote.enable(); renderPane(); };
   $("x-pin") && ($("x-pin").onclick = () => { remote.newPin(); renderPane(); });
 }
 

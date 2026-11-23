@@ -89,61 +89,64 @@
   <div class="info" style="margin-top:0">Apri questa pagina inquadrando il codice QR che trovi nelle impostazioni dell'esperienza, sezione Telefono.</div>
 </section>
 
-<script src="vendor/peerjs/peerjs.min.js"></script>
 <script type="module">
 import { PARAMS, PARAM, USER_PARAMS, TECH_GROUPS, formatParam } from "./js/settings.js";
-import { peerServer } from "./js/remote-host.js";
 
+// Il telefono parla con il server del Mac (web/server.py) sulla rete locale: nessun servizio esterno.
 const $ = (id) => document.getElementById(id);
-const hostId = decodeURIComponent(location.hash.slice(1));
-const PIN_KEY = "madhearts.telecomando.pin." + hostId;
+const PIN_KEY = "madhearts.telecomando.pin.remoto";
 const ICON_PAUSE = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>`;
 const ICON_PLAY = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>`;
-let conn = null, peer = null, state = null, authed = false;
+let pin = null, state = null, polling = false;
 const sendTimers = {};
 const read = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
-const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* privato */ } };
+const store = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* privato */ } };
 
 function status(text, cls = "") { $("status").textContent = text; $("dot").className = "dot " + cls; }
 function show(id) { for (const s of ["pinbox", "main", "nohost"]) $(s).classList.toggle("hidden", s !== id); }
-function send(msg) { if (conn && conn.open) conn.send(msg); }
 
-if (!hostId) { show("nohost"); status("—"); }
-else connect();
-
-function connect() {
-  status("collegamento…");
-  peer = new window.Peer({ debug: 0, ...peerServer() });
-  peer.on("open", () => {
-    conn = peer.connect(hostId, { reliable: true });
-    conn.on("open", () => {
-      const pin = read(PIN_KEY);
-      if (pin) hello(pin); else { show("pinbox"); status("in attesa del PIN"); }
-    });
-    conn.on("data", onData);
-    conn.on("close", () => { authed = false; status("scollegato: riprovo…"); setTimeout(retry, 2500); });
-  });
-  peer.on("error", (e) => {
-    if (e.type === "peer-unavailable") status("esperienza non raggiungibile: è aperta? riprovo…");
-    else status("serve Internet: riprovo…");
-    setTimeout(retry, 4000);
-  });
+async function send(msg) {
+  try {
+    const r = await fetch("api/remote/cmd", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...msg, pin }) });
+    if (r.status === 401) askPin("PIN cambiato: inseriscilo di nuovo");
+  } catch (e) { status("Mac non raggiungibile", ""); }
 }
-function retry() { try { peer?.destroy(); } catch (e) { /* già chiuso */ } connect(); }
-function hello(pin) { send({ type: "hello", pin }); store("madhearts.lastpin", pin); conn._pin = pin; }
 
-$("pin-go").onclick = () => { $("pin-err").textContent = ""; hello($("pin").value.trim()); };
+function askPin(err = "") {
+  polling = false;
+  store(PIN_KEY, null);
+  show("pinbox"); status("PIN richiesto");
+  $("pin-err").textContent = err;
+}
+
+async function poll() {
+  if (!polling) return;
+  try {
+    const r = await fetch("api/remote/state?pin=" + encodeURIComponent(pin), { cache: "no-store" });
+    if (r.status === 401) return askPin(state ? "PIN cambiato: inseriscilo di nuovo" : "PIN non corretto");
+    const res = await r.json();
+    show("main");
+    if (res.online && res.state) { state = res.state; render(); }
+    else status("esperienza chiusa o in avvio…");
+  } catch (e) {
+    status("Mac non raggiungibile: stessa rete?");
+  }
+  setTimeout(poll, 500);
+}
+
+function start(p) {
+  pin = p; store(PIN_KEY, p);
+  polling = true; status("collegamento…");
+  poll();
+}
+
+$("pin-go").onclick = () => { $("pin-err").textContent = ""; start($("pin").value.trim()); };
 $("pin").addEventListener("keydown", (e) => e.key === "Enter" && $("pin-go").click());
-
-function onData(msg) {
-  if (msg.type === "welcome") { authed = true; store(PIN_KEY, conn._pin); show("main"); status("collegato", "ok"); }
-  else if (msg.type === "denied") { try { localStorage.removeItem(PIN_KEY); } catch (e) { /* */ } show("pinbox"); $("pin-err").textContent = "PIN non corretto"; status("PIN richiesto"); }
-  else if (msg.type === "state") { state = msg.state; render(); }
-}
+if (read(PIN_KEY)) start(read(PIN_KEY)); else askPin();
 
 // ---------------------------------------------------------------- comandi
-$("play").onclick = () => send({ type: "cmd", cmd: state?.playing ? "pause" : "play" });
-$("mute").onclick = () => send({ type: "cmd", cmd: "mute", value: !state?.muted });
+$("play").onclick = () => send({ cmd: state?.playing ? "pause" : "play" });
+$("mute").onclick = () => send({ cmd: "mute", value: !state?.muted });
 
 function slider(id) {
   const [, label, , lo, hi, step, , hint] = PARAM[id];
@@ -156,7 +159,7 @@ function slider(id) {
     el.dataset.busy = Date.now();
     paint(el, v);
     clearTimeout(sendTimers[id]);
-    sendTimers[id] = setTimeout(() => send({ type: "cmd", cmd: "set", id, value: v }), 60);
+    sendTimers[id] = setTimeout(() => send({ cmd: "set", id, value: v }), 60);
   });
   return el;
 }

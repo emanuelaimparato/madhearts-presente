@@ -1,6 +1,7 @@
 #!/bin/bash
-# MadHearts web — prova sul Mac durante lo sviluppo.
-# Avvia un piccolo server locale (solo su questo Mac) e apre la pagina nel browser.
+# MadHearts web — avvio dal Mac.
+# Avvia il server locale (web/server.py: serve l'app e fa da tramite per il telecomando dal
+# telefono, senza servizi esterni) e apre l'esperienza nel browser predefinito.
 # Il browser consente la webcam su "localhost".
 # Uso:  bash web/avvia_web.command [pagina]     (predefinita: index.html, l'esperienza)
 # Per chiudere il server: Ctrl+C in questa finestra del Terminale (o chiudi la finestra).
@@ -18,7 +19,5 @@ if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "MadHearts web: $URL"
-echo "(per chiudere il server: Ctrl+C)"
 ( sleep 1; apri "$URL" ) &
-python3 -m http.server $PORT --bind 127.0.0.1
+python3 server.py $PORT

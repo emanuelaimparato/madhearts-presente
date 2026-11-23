@@ -33,17 +33,21 @@ Ogni regolazione si salva da sola in questo browser.
 Tasti: **Spazio** pausa · **F** schermo intero · **+ / −** volume · **M** muto · **D** debug ·
 **Esc** chiude le impostazioni · **C** due volte per azzerare la sfera.
 
-## Telecomando dal telefono
+## Telecomando dal telefono (senza servizi esterni)
+
+Funziona quando l'esperienza è aperta dal Mac con `bash web/avvia_web.command`: lo script
+avvia `web/server.py`, un piccolo server locale che serve l'app e fa da tramite tra telefono
+e Mac. Nessun servizio esterno, niente Internet, nessuna immagine inviata.
 
 Impostazioni → **Telefono** → attiva il telecomando: compaiono un codice QR e un PIN.
-Il telefono inquadra il codice, apre la pagina e inserisce il PIN: da lì comanda pausa,
-volumi e impostazioni. Il collegamento è diretto tra i due dispositivi; serve Internet solo
-per "trovarsi" (servizio gratuito PeerJS). Nessuna immagine viene inviata.
-Il codice QR compare quando l'app è aperta dal suo indirizzo online (Netlify).
+Il telefono (sulla **stessa rete** del Mac, o con il Mac collegato al suo hotspot) inquadra
+il codice, apre la pagina e inserisce il PIN: da lì comanda pausa, volumi e impostazioni.
+La prima volta macOS può chiedere se Python può accettare connessioni in entrata: **Consenti**.
+Dal sito online il telecomando non è disponibile (restano i comandi sullo schermo).
 
 ## Pubblicazione online (Netlify)
 
-Indirizzo: **https://madhearts-presente.netlify.app** — telecomando: `/telecomando.html` (si apre dal QR).
+Indirizzo: **https://madhearts-presente.netlify.app** — per condividere l'esperienza basta mandare questo link.
 
 
 Il file `netlify.toml` (nella cartella principale) dice a Netlify di pubblicare la cartella
