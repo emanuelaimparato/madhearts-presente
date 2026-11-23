@@ -187,7 +187,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $("gl");
 const SPHERE_KEY = "madhearts.sfera.v1";
 // indirizzo pubblico dell'app (per il codice QR del telefono quando la si usa da "localhost")
-const PUBLIC_URL = "";
+const PUBLIC_URL = "https://madhearts-presente.netlify.app/";
 const BASE = deepMerge(DEFAULTS, { app: { max_dpr: 1.5 } });
 let overrides = loadSettings();
 let cfg = deepMerge(BASE, toConfig(overrides));

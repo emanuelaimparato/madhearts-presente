@@ -43,6 +43,9 @@ Il codice QR compare quando l'app è aperta dal suo indirizzo online (Netlify).
 
 ## Pubblicazione online (Netlify)
 
+Indirizzo: **https://madhearts-presente.netlify.app** — telecomando: `/telecomando.html` (si apre dal QR).
+
+
 Il file `netlify.toml` (nella cartella principale) dice a Netlify di pubblicare la cartella
 `web`. Una volta collegato il repository, ogni modifica su GitHub aggiorna il sito da sola.
 
